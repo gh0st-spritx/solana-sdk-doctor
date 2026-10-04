@@ -1,0 +1,12 @@
+{
+  "name": "demo-dapp",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Fixture: a typical hackathon dApp built by copy-pasting SDK quickstarts. Intentionally drifted.",
+  "workspaces": ["packages/*"],
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@pythnetwork/hermes-client": "^3.1.0",
+    "@solana/web3.js": "^1.95.0"
+  }
+}

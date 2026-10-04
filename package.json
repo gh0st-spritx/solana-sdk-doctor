@@ -1,0 +1,53 @@
+{
+  "name": "solana-sdk-doctor",
+  "version": "0.1.0",
+  "description": "Catch docs-vs-reality drift in Solana & oracle SDKs: dead keyless endpoints, removed RPC methods, renamed packages, breaking constructor changes. CLI + GitHub Action.",
+  "license": "MIT",
+  "author": "Soumik Halder",
+  "keywords": [
+    "solana",
+    "pyth",
+    "anchor",
+    "web3.js",
+    "oracle",
+    "lint",
+    "drift",
+    "ci",
+    "github-action",
+    "developer-tools"
+  ],
+  "bin": {
+    "solana-sdk-doctor": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
+    "bundle": "node scripts/bundle.mjs",
+    "clean": "rm -rf dist",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "doctor": "node dist/cli.js",
+    "demo": "node dist/cli.js fixtures/demo-dapp",
+    "demo:offline": "node dist/cli.js fixtures/demo-dapp --offline",
+    "prepublishOnly": "npm run clean && npm run build && npm test"
+  },
+  "dependencies": {
+    "semver": "^7.6.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/semver": "^7.5.8",
+    "esbuild": "0.25.10",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

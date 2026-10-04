@@ -1,0 +1,6 @@
+node_modules/
+# tsc output for the npm package (rebuilt by `npm run build` / prepublishOnly).
+# The GitHub Action does NOT use it: it runs the committed single-file bundle in action-dist/.
+dist/
+*.log
+.sdk-doctor-report.md

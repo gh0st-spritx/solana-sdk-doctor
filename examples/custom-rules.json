@@ -1,0 +1,22 @@
+{
+  "name": "my-team-rules",
+  "version": "1",
+  "rules": [
+    {
+      "id": "TEAM-NO-DEVNET-IN-PROD",
+      "severity": "warn",
+      "title": "Devnet RPC URL in source",
+      "summary": "Production bundles should not hard-code devnet.",
+      "fix": "Read the cluster URL from configuration.",
+      "code": { "pattern": "https?://api\\.devnet\\.solana\\.com", "required": true }
+    },
+    {
+      "id": "SOLANA-PUBLIC-RPC-HARDCODED",
+      "severity": "fail",
+      "title": "Hard-coded public mainnet-beta RPC URL",
+      "summary": "Overrides the built-in rule: this team treats it as a hard failure.",
+      "fix": "Use process.env.SOLANA_RPC_URL.",
+      "code": { "pattern": "https?://api\\.mainnet-beta\\.solana\\.com", "required": true }
+    }
+  ]
+}

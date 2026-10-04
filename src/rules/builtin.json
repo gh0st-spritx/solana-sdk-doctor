@@ -1,0 +1,337 @@
+{
+  "name": "solana-sdk-doctor/builtin",
+  "version": "2026.10.04",
+  "rules": [
+    {
+      "id": "PYTH-HERMES-KEYLESS-401",
+      "package": "@pythnetwork/hermes-client",
+      "versions": "*",
+      "severity": "fail",
+      "title": "Keyless Hermes Quickstart now returns HTTP 401",
+      "summary": "The hermes-client README Quickstart builds `new HermesClient(\"https://hermes.pyth.network\", {})` with no credentials. The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so getLatestPriceUpdates() and SSE streams fail at runtime.",
+      "fix": "Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }` (sent as `Authorization: Bearer ...`), or point the client at a provider-hosted Hermes endpoint.",
+      "docs": [
+        "https://www.npmjs.com/package/@pythnetwork/hermes-client",
+        "https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes"
+      ],
+      "code": {
+        "pattern": "new\\s+HermesClient\\s*\\(",
+        "mitigatedBy": "accessToken|Authorization",
+        "mitigationScope": "call"
+      },
+      "probe": {
+        "kind": "http",
+        "method": "GET",
+        "url": "https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
+        "driftWhen": {
+          "status": [
+            401,
+            403
+          ]
+        }
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "GET /v2/updates/price/latest (keyless) -> HTTP 401 \"unauthorized\""
+      },
+      "tags": [
+        "pyth",
+        "oracle",
+        "auth",
+        "quickstart"
+      ]
+    },
+    {
+      "id": "PYTH-HERMES-RAW-ENDPOINT",
+      "severity": "fail",
+      "title": "Raw keyless calls to hermes.pyth.network",
+      "summary": "Code calls the public Hermes REST/SSE endpoint directly (fetch/axios/curl) without an Authorization header or ACCESS_TOKEN. Keyless price-update requests now return HTTP 401.",
+      "fix": "Send `Authorization: Bearer <token>` (REST) or `?ACCESS_TOKEN=<token>` (SSE/WebSocket), or use @pythnetwork/hermes-client >= 3.1.0 with `accessToken`.",
+      "docs": [
+        "https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes"
+      ],
+      "code": {
+        "pattern": "https?://hermes\\.pyth\\.network/(?:v2/)?(?:updates|api/latest_price_feeds|api/latest_vaas)",
+        "required": true,
+        "mitigatedBy": "Authorization|ACCESS_TOKEN|accessToken",
+        "mitigationScope": "call"
+      },
+      "probe": {
+        "kind": "http",
+        "method": "GET",
+        "url": "https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
+        "driftWhen": {
+          "status": [
+            401,
+            403
+          ]
+        }
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "GET /v2/updates/price/latest (keyless) -> HTTP 401 \"unauthorized\""
+      },
+      "tags": [
+        "pyth",
+        "oracle",
+        "auth"
+      ]
+    },
+    {
+      "id": "PYTH-HERMES-NO-ACCESSTOKEN-OPTION",
+      "package": "@pythnetwork/hermes-client",
+      "versions": "<3.1.0",
+      "severity": "warn",
+      "title": "No `accessToken` option before 3.1.0",
+      "summary": "The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0. Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be authenticated cleanly.",
+      "fix": "npm i @pythnetwork/hermes-client@^3.1.0",
+      "docs": [
+        "https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions"
+      ],
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "accessToken present in 3.1.0 typings, absent in 2.0.0 and 2.1.0"
+      },
+      "tags": [
+        "pyth",
+        "oracle",
+        "auth",
+        "upgrade"
+      ]
+    },
+    {
+      "id": "PYTH-PRICE-SERVICE-CLIENT-DEPRECATED",
+      "package": "@pythnetwork/price-service-client",
+      "versions": "*",
+      "severity": "warn",
+      "title": "Package is deprecated on npm",
+      "summary": "npm marks this package as deprecated and no longer maintained. Tutorials still reference it, but it will not receive the Hermes auth changes.",
+      "fix": "Migrate to @pythnetwork/hermes-client >= 3.1.0 (and configure an accessToken).",
+      "docs": [
+        "https://www.npmjs.com/package/@pythnetwork/price-service-client"
+      ],
+      "probe": {
+        "kind": "npm-deprecated",
+        "package": "@pythnetwork/price-service-client"
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "npm: \"This package is deprecated and is no longer maintained. Please use @pythnetwork/hermes-client instead.\""
+      },
+      "tags": [
+        "pyth",
+        "oracle",
+        "deprecated"
+      ]
+    },
+    {
+      "id": "SOLANA-REMOVED-RPC-METHODS",
+      "package": "@solana/web3.js",
+      "versions": "<2.0.0",
+      "severity": "fail",
+      "title": "Calls RPC methods removed from validators",
+      "summary": "web3.js 1.x still exposes helpers like getRecentBlockhash / getConfirmedTransaction / getFees, but Agave 2.x RPC nodes removed the underlying methods. They now fail with -32601 \"Method not found\" at runtime even though they type-check.",
+      "fix": "Use getLatestBlockhash, getTransaction, getSignaturesForAddress, getBlock/getBlocks, getFeeForMessage instead.",
+      "docs": [
+        "https://solana.com/docs/rpc/deprecated",
+        "https://github.com/anza-xyz/agave/wiki/Agave-v2.0-Transition-Guide"
+      ],
+      "code": {
+        "pattern": "\\.(getRecentBlockhash|getConfirmedTransaction|getConfirmedSignaturesForAddress2|getConfirmedBlock|getConfirmedBlocks|getConfirmedBlocksWithLimit|getFees|getFeeCalculatorForBlockhash|getFeeRateGovernor|getSnapshotSlot|getStakeActivation|getParsedConfirmedTransaction)\\s*\\(",
+        "required": true
+      },
+      "probe": {
+        "kind": "jsonrpc",
+        "url": "{{rpcUrl}}",
+        "method": "getRecentBlockhash",
+        "params": [],
+        "driftWhen": {
+          "rpcErrorCode": [
+            -32601
+          ]
+        }
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "mainnet-beta getRecentBlockhash/getConfirmedTransaction/getFees -> -32601 Method not found"
+      },
+      "tags": [
+        "solana",
+        "rpc",
+        "removed"
+      ]
+    },
+    {
+      "id": "SOLANA-CONFIRM-TX-STRING",
+      "package": "@solana/web3.js",
+      "versions": ">=1.38.0 <2.0.0",
+      "severity": "warn",
+      "title": "Deprecated confirmTransaction(signature)",
+      "summary": "Passing a bare signature string (instead of a { signature, blockhash, lastValidBlockHeight } strategy) relies on a fixed timeout instead of blockhash expiry, so confirmations randomly time out or report false failures under load.",
+      "fix": "Call `connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, commitment)` using the values from getLatestBlockhash().",
+      "docs": [
+        "https://solana.com/developers/guides/advanced/confirmation"
+      ],
+      "code": {
+        "pattern": "\\.confirmTransaction\\s*\\(\\s*(?<arg>\"[^\"\\n]*\"|'[^'\\n]*'|`[^`]*`|[A-Za-z_$][\\w$]*(?:\\??\\.[A-Za-z_$][\\w$]*)*)\\s*(?:,\\s*[^,()]+)?\\)",
+        "required": true,
+        "argument": {
+          "group": "arg",
+          "names": "(?:sig|signature|txid|txhash)$",
+          "assignedFrom": "\\.send(?:Raw)?Transaction\\s*\\(|sendAndConfirm\\w*\\s*\\(|\\.signature\\b|\\bsignatures\\s*\\[|bs58\\.encode\\s*\\(",
+          "types": "string|TransactionSignature"
+        }
+      },
+      "tags": [
+        "solana",
+        "deprecated"
+      ]
+    },
+    {
+      "id": "SOLANA-WEB3JS-V1-MAINTENANCE",
+      "package": "@solana/web3.js",
+      "versions": "<2.0.0",
+      "severity": "info",
+      "title": "web3.js 1.x is in maintenance mode",
+      "summary": "New development happens in @solana/kit (formerly web3.js 2.0). 1.x still works but receives fixes only.",
+      "fix": "Plan a migration to @solana/kit for new code; keep 1.x for libraries that still require it (e.g. Anchor clients).",
+      "docs": [
+        "https://github.com/anza-xyz/kit",
+        "https://www.npmjs.com/package/@solana/kit"
+      ],
+      "probe": {
+        "kind": "npm-published",
+        "package": "@solana/kit"
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "@solana/kit@8.4.0 published"
+      },
+      "tags": [
+        "solana",
+        "migration"
+      ]
+    },
+    {
+      "id": "SOLANA-WEB3JS-V2-RENAMED",
+      "package": "@solana/web3.js",
+      "versions": ">=2.0.0",
+      "severity": "warn",
+      "title": "web3.js 2.x was renamed to @solana/kit",
+      "summary": "npm deprecates @solana/web3.js@2: \"@solana/web3.js version 2.0 is now @solana/kit\". 2.x receives no updates under the old name.",
+      "fix": "Replace @solana/web3.js@2 with @solana/kit and upgrade @solana-program/* packages to Kit-compatible versions.",
+      "docs": [
+        "https://www.npmjs.com/package/@solana/kit"
+      ],
+      "probe": {
+        "kind": "npm-deprecated",
+        "package": "@solana/web3.js",
+        "version": "2.0.0"
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "npm deprecation notice on @solana/web3.js@2.0.0"
+      },
+      "tags": [
+        "solana",
+        "renamed"
+      ]
+    },
+    {
+      "id": "SOLANA-PUBLIC-RPC-HARDCODED",
+      "severity": "warn",
+      "title": "Hard-coded public mainnet-beta RPC URL",
+      "summary": "api.mainnet-beta.solana.com is rate-limited and not intended for production apps; examples that hard-code it start returning 429s under real traffic.",
+      "fix": "Read the RPC URL from configuration (e.g. process.env.SOLANA_RPC_URL) and use a dedicated RPC provider in production.",
+      "docs": [
+        "https://solana.com/docs/references/clusters"
+      ],
+      "code": {
+        "pattern": "https?://api\\.mainnet-beta\\.solana\\.com",
+        "required": true
+      },
+      "tags": [
+        "solana",
+        "rpc",
+        "production"
+      ]
+    },
+    {
+      "id": "ANCHOR-PROJECT-SERUM-PACKAGE",
+      "package": "@project-serum/anchor",
+      "versions": "*",
+      "severity": "warn",
+      "title": "Abandoned package (last release 2022)",
+      "summary": "The Anchor TS client moved to @coral-xyz/anchor in 0.27, and to @anchor-lang/core in Anchor 1.0. The old package never gets fixes or IDL-format support.",
+      "fix": "Replace with @anchor-lang/core (Anchor >= 1.0) or @coral-xyz/anchor (legacy 0.x) and update imports.",
+      "docs": [
+        "https://www.anchor-lang.com/docs/updates/changelog"
+      ],
+      "probe": {
+        "kind": "npm-published",
+        "package": "@anchor-lang/core"
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "@project-serum/anchor last published 0.26.0 (2022-12); @anchor-lang/core published"
+      },
+      "tags": [
+        "anchor",
+        "renamed"
+      ]
+    },
+    {
+      "id": "ANCHOR-PROGRAM-CTOR-0.30",
+      "package": "@coral-xyz/anchor",
+      "versions": ">=0.30.0",
+      "severity": "fail",
+      "title": "Pre-0.30 new Program(idl, programId, provider)",
+      "summary": "Since Anchor 0.30 the constructor is `new Program(idl, provider?)`; the program id is read from `idl.address`. The old 3-argument form, still common in tutorials, passes the programId where the provider is expected.",
+      "fix": "Use `new Program(idl as MyProgram, provider)` with a 0.30+ IDL that contains `address`.",
+      "docs": [
+        "https://www.anchor-lang.com/docs/updates/release-notes/0-30-0"
+      ],
+      "code": {
+        "pattern": "new\\s+(?:anchor\\.)?Program\\s*(?:<[^>]*>)?\\s*\\(\\s*[^,()]+,\\s*[^,()]+,\\s*[^,()]+\\)",
+        "required": true
+      },
+      "tags": [
+        "anchor",
+        "breaking"
+      ]
+    },
+    {
+      "id": "ANCHOR-RENAMED-ANCHOR-LANG-CORE",
+      "package": "@coral-xyz/anchor",
+      "versions": "*",
+      "severity": "warn",
+      "title": "Renamed to @anchor-lang/core in Anchor 1.0",
+      "summary": "Anchor 1.0 (and 0.31.2+ release notes) moved the TypeScript client to @anchor-lang/core; the @coral-xyz/* line is legacy and is not the supported path for new releases.",
+      "fix": "npm i @anchor-lang/core and replace imports from \"@coral-xyz/anchor\" (including dist/cjs/idl) with \"@anchor-lang/core\".",
+      "docs": [
+        "https://www.anchor-lang.com/docs/updates/release-notes/1-0-0"
+      ],
+      "probe": {
+        "kind": "npm-published",
+        "package": "@anchor-lang/core"
+      },
+      "verified": {
+        "date": "2026-10-04",
+        "drift": true,
+        "detail": "@anchor-lang/core@1.2.0 published"
+      },
+      "tags": [
+        "anchor",
+        "renamed"
+      ]
+    }
+  ]
+}

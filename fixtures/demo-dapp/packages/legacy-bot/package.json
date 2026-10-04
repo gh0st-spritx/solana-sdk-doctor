@@ -1,0 +1,10 @@
+{
+  "name": "legacy-bot",
+  "private": true,
+  "version": "0.0.1",
+  "dependencies": {
+    "@project-serum/anchor": "^0.26.0",
+    "@pythnetwork/hermes-client": "^2.1.0",
+    "@pythnetwork/price-service-client": "^1.9.0"
+  }
+}

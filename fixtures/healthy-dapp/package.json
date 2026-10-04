@@ -1,0 +1,11 @@
+{
+  "name": "healthy-dapp",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Fixture: same features as demo-dapp, written against current SDK reality.",
+  "dependencies": {
+    "@anchor-lang/core": "^1.2.0",
+    "@pythnetwork/hermes-client": "^3.1.0",
+    "@solana/web3.js": "^1.98.0"
+  }
+}
