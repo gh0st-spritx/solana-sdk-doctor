@@ -271,7 +271,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: <owner>/solana-sdk-doctor@v0   # placeholder until the repo is published
+      - uses: gh0st-spritx/solana-sdk-doctor@master
         with:
           path: .
           fail-on: fail        # or warn
