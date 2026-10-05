@@ -96,6 +96,15 @@ export function renderTable(report: Report, opts: { color?: boolean; verbose?: b
   else out.push(c.bold(title), ...wrap(meta.replace(/ {2}· {2}/g, " · "), width, "   ").map(c.dim));
   const root = report.root.length + 9 > width ? "…" + report.root.slice(report.root.length - (width - 10)) : report.root;
   out.push(c.dim(`   root: ${root}`));
+  if (report.rpc) {
+    const parts = [`rpc: ${report.rpc.provider}`, report.rpc.url];
+    if (report.rpc.slot !== undefined) parts.push(`slot ${report.rpc.slot}`);
+    if (report.rpc.latencyMs !== undefined) parts.push(`${report.rpc.latencyMs}ms`);
+    if (report.rpc.onChainQueried !== undefined) parts.push(`${report.rpc.onChainQueried} on-chain addrs`);
+    if (report.rpc.onChainInconclusive) parts.push("on-chain inconclusive");
+    if (report.rpc.detail) parts.push(report.rpc.detail);
+    out.push(...wrap(parts.join("  ·  "), width, "   ").map(c.dim));
+  }
   out.push("");
 
   if (report.findings.length === 0) {

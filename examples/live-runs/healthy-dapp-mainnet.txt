@@ -1,0 +1,21 @@
+🩺 solana-sdk-doctor v0.1.0  ·  live mode  ·  16 rules  ·  1 package.json
+   root: /workspace/colosseum/solana-sdk-doctor/fixtures/healthy-dapp
+   rpc: public-mainnet · https://api.mainnet-beta.solana.com · slot 453501259 · 271ms · 2 on-chain addrs
+
+  STATUS  RULE                          PACKAGE                           FINDING                           EVIDENCE
+  ──────  ────────────────────────────  ────────────────────────────────  ────────────────────────────────  ────────────────────────────────
+  INFO    SOLANA-WEB3JS-V1-MAINTENANCE  @solana/web3.js@1.98.0            web3.js 1.x is in maintenance m…  live: @solana/kit@8.4.0 is publ…
+  PASS    PYTH-HERMES-KEYLESS-401       @pythnetwork/hermes-client@3.1.0  Keyless Hermes Quickstart now r…  mitigated at 2 call sites
+
+INFO SOLANA-WEB3JS-V1-MAINTENANCE in package.json
+  @solana/web3.js@1.98.0
+  web3.js 1.x is in maintenance mode
+  New development happens in @solana/kit (formerly web3.js 2.0). 1.x still works but receives fixes only.
+  probe  [live] npm @solana/kit
+         → @solana/kit@8.4.0 is published (268ms)
+  fix    Plan a migration to @solana/kit for new code; keep 1.x for libraries that still require it (e.g. Anchor
+         clients).
+  docs   https://github.com/anza-xyz/kit
+  docs   https://www.npmjs.com/package/@solana/kit
+
+Summary: 0 fail, 0 warn, 1 info, 1 pass

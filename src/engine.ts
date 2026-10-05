@@ -1,8 +1,11 @@
 import { resolve } from "node:path";
 import semver from "semver";
+import { extractAddresses } from "./addresses";
 import { findMatches } from "./code";
-import { createProber, DEFAULT_REGISTRY, DEFAULT_RPC_URL, type Fetcher, describeTarget } from "./probes";
-import { scan, type Manifest } from "./scanner";
+import { checkOnChainAddresses, filterOnChainFindings, ONCHAIN_RULES } from "./onchain";
+import { createProber, DEFAULT_REGISTRY, type Fetcher, describeTarget } from "./probes";
+import { probeRpcHeader, resolveRpcProvider, type RpcProvider, type ResolveRpcOptions } from "./rpc";
+import { scan, type Manifest, type SourceFile } from "./scanner";
 import { TOOL_NAME, TOOL_VERSION } from "./version";
 import type { DetectedPackage, Finding, ProbeOutcome, Report, Rule, Status } from "./types";
 
@@ -10,12 +13,23 @@ export interface DiagnoseOptions {
   rules: Rule[];
   offline?: boolean;
   timeoutMs?: number;
+  /** Explicit RPC URL or the keyword `solami`. Prefer `rpc` going forward. */
   rpcUrl?: string;
+  /** Same as rpcUrl; accepts `solami` or an http(s) URL. */
+  rpc?: string;
+  /** Env used for SOLAMI_API_KEY / SOLANA_RPC_URL resolution (defaults to process.env). */
+  env?: NodeJS.ProcessEnv;
+  /** Pre-resolved provider (tests). */
+  provider?: RpcProvider;
   registryUrl?: string;
   fetch?: Fetcher;
   /** Pre-scanned manifests (tests); otherwise `root` is scanned from disk. */
   manifests?: Manifest[];
   now?: () => Date;
+  /** Skip on-chain address drift (default: run in live mode). */
+  skipOnChain?: boolean;
+  /** Rule ids disabled via --disable (also applied to on-chain family). */
+  disabled?: string[];
 }
 
 export function versionMatches(version: string | undefined, range = "*"): boolean {
@@ -32,15 +46,24 @@ export function knownPackages(rules: Rule[]): Set<string> {
 export async function diagnose(root: string, opts: DiagnoseOptions): Promise<Report> {
   const absRoot = resolve(root);
   const manifests = opts.manifests ?? scan(absRoot);
+
+  const provider =
+    opts.provider ??
+    resolveRpcProvider({
+      rpc: opts.rpc ?? opts.rpcUrl,
+      env: opts.env ?? process.env,
+    });
+
   const ctx = {
     fetch: opts.fetch ?? (globalThis.fetch as Fetcher),
     timeoutMs: opts.timeoutMs ?? 8000,
-    rpcUrl: opts.rpcUrl ?? DEFAULT_RPC_URL,
+    rpcUrl: provider.url,
     registryUrl: opts.registryUrl ?? DEFAULT_REGISTRY,
     userAgent: `${TOOL_NAME}/${TOOL_VERSION}`,
   };
   const probe = createProber(ctx);
   const known = knownPackages(opts.rules);
+  const disabled = new Set(opts.disabled ?? []);
 
   const pending: Promise<Finding | null>[] = [];
   const packages: DetectedPackage[] = [];
@@ -133,22 +156,51 @@ export async function diagnose(root: string, opts: DiagnoseOptions): Promise<Rep
     }
   }
 
+  // Live on-chain address drift (skipped offline / when disabled entirely).
+  let rpcInfo: Report["rpc"];
+  if (!opts.offline) {
+    rpcInfo = await probeRpcHeader(provider, {
+      fetch: ctx.fetch,
+      timeoutMs: ctx.timeoutMs,
+      userAgent: ctx.userAgent,
+    });
+
+    if (!opts.skipOnChain) {
+      const sources: SourceFile[] = manifests.flatMap((m) => m.sources);
+      const hits = extractAddresses(sources);
+      const onchain = await checkOnChainAddresses(hits, {
+        fetch: ctx.fetch,
+        timeoutMs: ctx.timeoutMs,
+        userAgent: ctx.userAgent,
+        provider,
+      });
+      rpcInfo.onChainQueried = onchain.queried;
+      rpcInfo.onChainInconclusive = onchain.inconclusive;
+      if (onchain.detail) rpcInfo.detail = (rpcInfo.detail ? rpcInfo.detail + "; " : "") + onchain.detail;
+      findings.push(...filterOnChainFindings(onchain.findings, disabled));
+    }
+  }
+
   const order: Record<Status, number> = { fail: 0, warn: 1, info: 2, pass: 3 };
   findings.sort((a, b) => order[a.status] - order[b.status] || a.manifest.localeCompare(b.manifest) || a.ruleId.localeCompare(b.ruleId));
 
   const summary: Record<Status, number> = { pass: 0, info: 0, warn: 0, fail: 0 };
   for (const f of findings) summary[f.status]++;
 
+  const onChainEnabled = !opts.offline && !opts.skipOnChain;
+  const rulesLoaded = opts.rules.length + (onChainEnabled ? ONCHAIN_RULES.filter((r) => !disabled.has(r.id)).length : 0);
+
   return {
     tool: { name: TOOL_NAME, version: TOOL_VERSION },
     root: absRoot,
     mode: opts.offline ? "offline" : "live",
     generatedAt: (opts.now ? opts.now() : new Date()).toISOString(),
-    rulesLoaded: opts.rules.length,
+    rulesLoaded,
     manifests: manifests.map((m) => m.path),
     packages,
     findings,
     summary,
+    rpc: rpcInfo,
   };
 }
 
@@ -160,3 +212,5 @@ export function exitCodeFor(report: Report, failOn: FailOn = "fail"): number {
   if (failOn === "warn" && report.summary.warn > 0) return 1;
   return 0;
 }
+
+export { resolveRpcProvider, type ResolveRpcOptions, type RpcProvider };

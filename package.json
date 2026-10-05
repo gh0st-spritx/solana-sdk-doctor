@@ -1,7 +1,7 @@
 {
   "name": "solana-sdk-doctor",
   "version": "0.1.0",
-  "description": "Catch docs-vs-reality drift in Solana & oracle SDKs: dead keyless endpoints, removed RPC methods, renamed packages, breaking constructor changes. CLI + GitHub Action.",
+  "description": "Catch docs-vs-reality drift in Solana & oracle SDKs: dead keyless endpoints, removed RPC methods, renamed packages, breaking constructor changes, and hard-coded on-chain addresses. CLI + GitHub Action. Live mode supports Solami RPC.",
   "license": "MIT",
   "author": "Soumik Halder",
   "keywords": [
@@ -14,7 +14,10 @@
     "drift",
     "ci",
     "github-action",
-    "developer-tools"
+    "developer-tools",
+    "solami",
+    "rpc",
+    "on-chain"
   ],
   "bin": {
     "solana-sdk-doctor": "dist/cli.js"

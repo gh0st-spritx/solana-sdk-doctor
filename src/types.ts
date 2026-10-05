@@ -157,6 +157,18 @@ export interface Finding {
   probe: ProbeOutcome;
 }
 
+/** Optional live-RPC header (provider, slot, latency). Secrets are always redacted. */
+export interface RpcInfo {
+  provider: string;
+  url: string;
+  slot?: number;
+  latencyMs?: number;
+  detail?: string;
+  /** Addresses queried by on-chain drift rules (unique pubkeys). */
+  onChainQueried?: number;
+  onChainInconclusive?: boolean;
+}
+
 export interface Report {
   tool: { name: string; version: string };
   root: string;
@@ -167,4 +179,6 @@ export interface Report {
   packages: DetectedPackage[];
   findings: Finding[];
   summary: Record<Status, number>;
+  /** Present in live mode when an RPC endpoint was contacted. */
+  rpc?: RpcInfo;
 }

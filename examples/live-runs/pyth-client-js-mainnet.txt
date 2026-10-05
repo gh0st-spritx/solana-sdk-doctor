@@ -1,0 +1,167 @@
+🩺 solana-sdk-doctor v0.1.0  ·  live mode  ·  16 rules  ·  1 package.json
+   root: /workspace/colosseum/scan/pyth-client-js
+   rpc: public-mainnet · https://api.mainnet-beta.solana.com · slot 453501262 · 339ms · 12 on-chain addrs
+
+  STATUS  RULE                             PACKAGE                   FINDING                              EVIDENCE
+  ──────  ───────────────────────────────  ────────────────────────  ───────────────────────────────────  ──────────────────────────────────
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: gSbePebfvPy7tRqimPoVecS2UsB…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: 8tfDNiaEyrV6Q1U4DEXrEigs9Do…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: BmA9Z6FjioHJPpjT39QazZyhDRU…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: AGQnwBFJ3WwWXqjkaeDKYkU3tJF…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: 4Lqbt4kQYjc5TxQiyRiLKi9rviz…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: 9TvBred1G7eFo8E16MEK4LxHP11…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: 7VJsBtJzgTftYzEeooSDYyjKXvY…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: FPPnzp74SGt72T463B62fQh3Di9…
+  FAIL    ONCHAIN-ACCOUNT-MISSING          (source code)             Hard-coded account missing or clos…  live: GBvYgUMCt4nvycUZMEBpHyLEXGb…
+  WARN    ANCHOR-RENAMED-ANCHOR-LANG-CORE  @coral-xyz/anchor@0.29.0  Renamed to @anchor-lang/core in An…  live: @anchor-lang/core@1.2.0 is …
+  WARN    ONCHAIN-DEVNET-ON-MAINNET        (source code)             Known devnet-only address used in …  live: gSbePebfvPy7tRqimPoVecS2UsB…
+  INFO    SOLANA-WEB3JS-V1-MAINTENANCE     @solana/web3.js@1.72.0    web3.js 1.x is in maintenance mode   live: @solana/kit@8.4.0 is publis…
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s → null (missing/closed)
+  at     src/cluster.ts:8  devnet: 'gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s',
+  note   gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → 8tfDNiaEyrV6Q1U4DEXrEigs9DoDtkugzFbybENEbCDz → null (missing/closed)
+  at     src/cluster.ts:10  testnet: '8tfDNiaEyrV6Q1U4DEXrEigs9DoDtkugzFbybENEbCDz',
+  note   8tfDNiaEyrV6Q1U4DEXrEigs9DoDtkugzFbybENEbCDz → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2 → null (missing/closed)
+  at     src/__tests__/Example.test.ts:5  const ORACLE_MAPPING_PUBLIC_KEY = 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2'
+  at     src/__tests__/Mapping.test.ts:7  const oraclePublicKey = 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2'
+  at     src/__tests__/Price.test.ts:16  const oraclePublicKey = 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2'
+  at     src/__tests__/Product.test.ts:8  const oraclePublicKey = 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2'
+  note   BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2 → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → AGQnwBFJ3WwWXqjkaeDKYkU3tJFi8cMkCCevQeLUYSf5 → null (missing/closed)
+  at     src/__tests__/Permission.test.ts:16  expect(permission.masterAuthority.equals(new PublicKey('AGQnwBFJ3WwWXqjkaeDKYkU3tJFi8cMkCCevQ…
+  note   AGQnwBFJ3WwWXqjkaeDKYkU3tJFi8cMkCCevQeLUYSf5 → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → 4Lqbt4kQYjc5TxQiyRiLKi9rvizU4VRiXUpzEBkZLbid → null (missing/closed)
+  at     src/__tests__/Permission.test.ts:18  permission.dataCurationAuthority.equals(new PublicKey('4Lqbt4kQYjc5TxQiyRiLKi9rvizU4VRiXUpzEB…
+  note   4Lqbt4kQYjc5TxQiyRiLKi9rvizU4VRiXUpzEBkZLbid → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → 9TvBred1G7eFo8E16MEK4LxHP11XEMqxkdmZ84WtaUau → null (missing/closed)
+  at     src/__tests__/Permission.test.ts:21  permission.securityAuthority.equals(new PublicKey('9TvBred1G7eFo8E16MEK4LxHP11XEMqxkdmZ84WtaU…
+  note   9TvBred1G7eFo8E16MEK4LxHP11XEMqxkdmZ84WtaUau → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → 7VJsBtJzgTftYzEeooSDYyjKXvYRWJHdwvbwfBvTg9K → null (missing/closed)
+  at     src/__tests__/PythNetworkRestClient.test.ts:31  const solUSDKey = new PublicKey('7VJsBtJzgTftYzEeooSDYyjKXvYRWJHdwvbwfBvTg9K')
+  at     src/__tests__/PythNetworkRestClient.test.ts:64  const solUSDKey = new PublicKey('7VJsBtJzgTftYzEeooSDYyjKXvYRWJHdwvbwfBvTg9K')
+  at     src/__tests__/PythNetworkRestClient.test.ts:103  const solUSDKey = new PublicKey('7VJsBtJzgTftYzEeooSDYyjKXvYRWJHdwvbwfBvTg9K')
+  note   7VJsBtJzgTftYzEeooSDYyjKXvYRWJHdwvbwfBvTg9K → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → FPPnzp74SGt72T463B62fQh3Di9fXrBe82YnQh8ycQp9 → null (missing/closed)
+  at     src/__tests__/PythNetworkRestClient.test.ts:65  const bonkUSDKey = new PublicKey('FPPnzp74SGt72T463B62fQh3Di9fXrBe82YnQh8ycQp9')
+  note   FPPnzp74SGt72T463B62fQh3Di9fXrBe82YnQh8ycQp9 → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → GBvYgUMCt4nvycUZMEBpHyLEXGbKjr6G9HjMjmLyf6mA → null (missing/closed)
+  at     src/__tests__/PythNetworkRestClient.test.ts:66  const usdcUSDKey = new PublicKey('GBvYgUMCt4nvycUZMEBpHyLEXGbKjr6G9HjMjmLyf6mA')
+  at     src/__tests__/PythNetworkRestClient.test.ts:106  const usdcUSDKey = new PublicKey('GBvYgUMCt4nvycUZMEBpHyLEXGbKjr6G9HjMjmLyf6mA')
+  note   GBvYgUMCt4nvycUZMEBpHyLEXGbKjr6G9HjMjmLyf6mA → null on public-mainnet
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+WARN ANCHOR-RENAMED-ANCHOR-LANG-CORE in package.json
+  @coral-xyz/anchor@0.29.0
+  Renamed to @anchor-lang/core in Anchor 1.0
+  Anchor 1.0 (and 0.31.2+ release notes) moved the TypeScript client to @anchor-lang/core; the @coral-xyz/* line is
+  legacy and is not the supported path for new releases.
+  probe  [live] npm @anchor-lang/core
+         → @anchor-lang/core@1.2.0 is published (178ms)
+  fix    npm i @anchor-lang/core and replace imports from "@coral-xyz/anchor" (including dist/cjs/idl) with
+         "@anchor-lang/core".
+  docs   https://www.anchor-lang.com/docs/updates/release-notes/1-0-0
+
+WARN ONCHAIN-DEVNET-ON-MAINNET in package.json
+  Known devnet-only address used in a mainnet context
+  Source hard-codes an address that is documented as devnet-only (e.g. Pyth's devnet oracle program), while the doctor
+  is probing a mainnet RPC.
+  probe  [live] getMultipleAccounts @ https://api.mainnet-beta.solana.com
+         → gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s flagged as devnet-only while probing public-mainnet
+  at     src/cluster.ts:8  devnet: 'gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s',
+  note   gSbePebf… is documented for devnet; RPC provider is public-mainnet
+  fix    Switch to the mainnet program id, or select addresses from a cluster map keyed by the active RPC.
+  docs   https://docs.pyth.network/price-feeds/core/contract-addresses/solana
+
+INFO SOLANA-WEB3JS-V1-MAINTENANCE in package.json
+  @solana/web3.js@1.72.0
+  web3.js 1.x is in maintenance mode
+  New development happens in @solana/kit (formerly web3.js 2.0). 1.x still works but receives fixes only.
+  probe  [live] npm @solana/kit
+         → @solana/kit@8.4.0 is published (226ms)
+  fix    Plan a migration to @solana/kit for new code; keep 1.x for libraries that still require it (e.g. Anchor
+         clients).
+  docs   https://github.com/anza-xyz/kit
+  docs   https://www.npmjs.com/package/@solana/kit
+
+Summary: 9 fail, 2 warn, 1 info, 0 pass

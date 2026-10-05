@@ -12,6 +12,14 @@ export function renderMarkdown(report: Report): string {
   out.push(`### 🩺 Solana SDK Doctor — ${headline}`);
   out.push("");
   out.push(`**${s.fail}** fail · **${s.warn}** warn · **${s.info}** info · **${s.pass}** pass — ${report.mode} mode, ${report.rulesLoaded} rules, ${report.manifests.length} package.json`);
+  if (report.rpc) {
+    const bits = [`provider \`${report.rpc.provider}\``, `\`${report.rpc.url}\``];
+    if (report.rpc.slot !== undefined) bits.push(`slot **${report.rpc.slot}**`);
+    if (report.rpc.latencyMs !== undefined) bits.push(`latency **${report.rpc.latencyMs}ms**`);
+    if (report.rpc.onChainQueried !== undefined) bits.push(`on-chain addrs **${report.rpc.onChainQueried}**`);
+    out.push("");
+    out.push(`RPC: ${bits.join(" · ")}`);
+  }
   out.push("");
   if (report.findings.length === 0) {
     out.push("_No known Solana/oracle SDKs detected._");

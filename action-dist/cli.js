@@ -2219,6 +2219,133 @@ function maskSource(path, src) {
   return { code: src, skeleton: src };
 }
 
+// src/addresses.ts
+var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+var BASE58_MAP = (() => {
+  const m = new Int8Array(128).fill(-1);
+  for (let i = 0; i < BASE58_ALPHABET.length; i++) m[BASE58_ALPHABET.charCodeAt(i)] = i;
+  return m;
+})();
+function decodeBase58(str) {
+  if (!str) return new Uint8Array(0);
+  let zeros = 0;
+  while (zeros < str.length && str[zeros] === "1") zeros++;
+  const size = (str.length - zeros) * 733 / 1e3 + 1 | 0;
+  const buf = new Uint8Array(size);
+  let length = 0;
+  for (let i = zeros; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    let carry = c < 128 ? BASE58_MAP[c] : -1;
+    if (carry < 0) throw new Error("invalid base58");
+    let j = 0;
+    for (let k = size - 1; (carry !== 0 || j < length) && k >= 0; k--, j++) {
+      carry += 58 * buf[k];
+      buf[k] = carry & 255;
+      carry >>= 8;
+    }
+    length = j;
+  }
+  let start = size - length;
+  while (start < size && buf[start] === 0) start++;
+  const out = new Uint8Array(zeros + (size - start));
+  out.fill(0, 0, zeros);
+  out.set(buf.subarray(start), zeros);
+  return out;
+}
+function isValidPubkey(s) {
+  if (s.length < 32 || s.length > 44) return false;
+  try {
+    return decodeBase58(s).length === 32;
+  } catch {
+    return false;
+  }
+}
+var PUBKEY_RE = /(?:new\s+(?:[\w$.]+\.)?PublicKey\s*\(\s*|PublicKey\s*\.\s*from\s*\(\s*)(["'`])([1-9A-HJ-NP-Za-km-z]{32,44})\1\s*\)/g;
+var NAMED_CONST_RE = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;]+)?=\s*(?:new\s+(?:[\w$.]+\.)?PublicKey\s*\(\s*)?(["'`])([1-9A-HJ-NP-Za-km-z]{32,44})\2/g;
+var ADDRESS_FIELD_RE = /(?:["']address["']|address)\s*[:=]\s*(["'`])([1-9A-HJ-NP-Za-km-z]{32,44})\1/g;
+var CLUSTER_MAP_RE = /(?:mainnet-beta|devnet|testnet|pythnet|localnet)\s*["']?\s*:\s*(["'`])([1-9A-HJ-NP-Za-km-z]{32,44})\1/gi;
+var NAME_PROGRAM = /program|prog_?id|pid\b/i;
+var NAME_FEED = /feed|price|oracle|product/i;
+var NAME_ACCOUNT = /account|mint|vault|authority|wallet|treasury|escrow|ata\b/i;
+var NAME_INTERESTING = /program|account|address|pubkey|public_?key|feed|oracle|price|mint|authority|vault|treasury|escrow|receiver|push|idl/i;
+function classify(name, nearby) {
+  const lhs = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;]+)?=\s*(?:new\s+)?(?:[\w$.]*\.)?PublicKey\b/.exec(nearby)?.[1] ?? "";
+  const n = name || lhs;
+  if (NAME_PROGRAM.test(n) || /\bnew\s+(?:[\w$.]+\.)?Program\b/.test(nearby) || /\.programId\b/.test(nearby)) return "program";
+  if (NAME_FEED.test(n)) return "feed";
+  if (NAME_ACCOUNT.test(n)) return "account";
+  if (/\bprogramId\b|\bPROGRAM_ID\b/.test(nearby)) return "program";
+  return "unknown";
+}
+function lineOf(content, idx) {
+  let line = 1;
+  let start = 0;
+  for (let i = 0; i < idx && i < content.length; i++) {
+    if (content.charCodeAt(i) === 10) {
+      line++;
+      start = i + 1;
+    }
+  }
+  const end = content.indexOf("\n", idx);
+  return { line, text: content.slice(start, end < 0 ? content.length : end) };
+}
+function pushUnique(out, seen, hit) {
+  const key = `${hit.file}:${hit.line}:${hit.pubkey}`;
+  if (!isValidPubkey(hit.pubkey)) return;
+  if (seen.has(key)) {
+    const existing = out.find((h) => h.file === hit.file && h.line === hit.line && h.pubkey === hit.pubkey);
+    if (existing) {
+      if (hit.name && !existing.name) existing.name = hit.name;
+      if (hit.kind !== "unknown" && existing.kind === "unknown") existing.kind = hit.kind;
+      if (hit.kind === "program") existing.kind = "program";
+    }
+    return;
+  }
+  seen.add(key);
+  out.push(hit);
+}
+function extractAddresses(files) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const f of files) {
+    const { code } = maskSource(f.path, f.content);
+    const add = (pubkey, index, name) => {
+      const { line, text } = lineOf(f.content, index);
+      const nearby = code.slice(Math.max(0, index - 120), Math.min(code.length, index + pubkey.length + 80));
+      const kind = classify(name, nearby);
+      const inferred = name || /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;]+)?=\s*(?:new\s+)?(?:[\w$.]*\.)?PublicKey\b/.exec(nearby)?.[1];
+      pushUnique(out, seen, {
+        pubkey,
+        file: f.path,
+        line,
+        snippet: text.trim().slice(0, 160),
+        kind,
+        name: inferred
+      });
+    };
+    for (const re of [PUBKEY_RE, NAMED_CONST_RE, ADDRESS_FIELD_RE, CLUSTER_MAP_RE]) {
+      re.lastIndex = 0;
+      let m;
+      while (m = re.exec(code)) {
+        const pubkey = m[m.length - 1];
+        const name = re === NAMED_CONST_RE ? m[1] : void 0;
+        if (re === NAMED_CONST_RE && name && !NAME_INTERESTING.test(name)) continue;
+        add(pubkey, m.index, name);
+      }
+    }
+  }
+  return out;
+}
+function groupByPubkey(hits) {
+  const map = /* @__PURE__ */ new Map();
+  for (const h of hits) {
+    const list = map.get(h.pubkey) ?? [];
+    list.push(h);
+    map.set(h.pubkey, list);
+  }
+  return map;
+}
+
 // src/code.ts
 function callEnd(text, openIdx, maxLen = 4e3) {
   let depth = 0;
@@ -2240,7 +2367,7 @@ function prepare(f) {
   }
   return p;
 }
-function lineOf(p, idx) {
+function lineOf2(p, idx) {
   let lo = 0;
   let hi = p.lineStarts.length - 1;
   while (lo < hi) {
@@ -2397,7 +2524,7 @@ function findMatches(check, files) {
         continue;
       }
       if (check.argument && !argumentMatches(view, m.groups?.[check.argument.group], m.index, check.argument)) continue;
-      const line = lineOf(p, m.index);
+      const line = lineOf2(p, m.index);
       const lineText = p.lines[line - 1] ?? "";
       let mitigated = fileMitigated;
       if (mitigation && !mitigated && check.mitigationScope !== "file") {
@@ -2524,6 +2651,335 @@ function createProber(ctx) {
   };
 }
 
+// src/rpc.ts
+var SOLAMI_RPC_BASE = "https://rpc.solami.dev/sol";
+var RpcConfigError = class extends Error {
+};
+function redactSecrets(text) {
+  return text.replace(/([?&](?:api[_-]?key|access[_-]?token|token|key)=)[^&\s"'`]+/gi, "$1***").replace(/(Authorization:\s*Bearer\s+)\S+/gi, "$1***").replace(/\bsk_[A-Za-z0-9_-]{8,}\b/g, "sk_***");
+}
+function solamiRpcUrl(apiKey, region) {
+  const key = apiKey.trim();
+  if (!key) throw new RpcConfigError("SOLAMI_API_KEY is empty");
+  const host = region ? `https://${region}.rpc.solami.dev/sol` : SOLAMI_RPC_BASE;
+  return `${host}?api_key=${encodeURIComponent(key)}`;
+}
+function resolveRpcProvider(opts = {}) {
+  const env = opts.env ?? process.env;
+  const raw = (opts.rpc ?? "").trim();
+  const solamiKey = (env.SOLAMI_API_KEY ?? "").trim();
+  const envRpc = (env.SOLANA_RPC_URL ?? "").trim();
+  const asSolami = () => {
+    if (!solamiKey) {
+      throw new RpcConfigError(
+        "Solami RPC requested but SOLAMI_API_KEY is not set. Get a key at https://solami.dev/signup then export SOLAMI_API_KEY=\u2026"
+      );
+    }
+    const url = solamiRpcUrl(solamiKey, opts.solamiRegion);
+    return {
+      kind: "solami",
+      url,
+      displayUrl: redactSecrets(url),
+      label: "solami"
+    };
+  };
+  if (raw) {
+    if (/^solami$/i.test(raw)) return asSolami();
+    if (!/^https?:\/\//i.test(raw)) {
+      throw new RpcConfigError(`--rpc must be an http(s) URL or the keyword "solami" (got "${raw}")`);
+    }
+    const kind = /rpc\.solami\.dev/i.test(raw) ? "solami" : /api\.mainnet-beta\.solana\.com/i.test(raw) ? "public" : "custom";
+    return { kind, url: raw, displayUrl: redactSecrets(raw), label: kind === "public" ? "public-mainnet" : kind };
+  }
+  if (solamiKey) return asSolami();
+  if (envRpc) {
+    return {
+      kind: /rpc\.solami\.dev/i.test(envRpc) ? "solami" : "custom",
+      url: envRpc,
+      displayUrl: redactSecrets(envRpc),
+      label: /rpc\.solami\.dev/i.test(envRpc) ? "solami" : "custom"
+    };
+  }
+  return {
+    kind: "public",
+    url: DEFAULT_RPC_URL,
+    displayUrl: DEFAULT_RPC_URL,
+    label: "public-mainnet"
+  };
+}
+async function probeRpcHeader(provider, opts) {
+  const header = { provider: provider.label, url: provider.displayUrl };
+  const start = Date.now();
+  try {
+    const res = await opts.fetch(provider.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": opts.userAgent },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSlot", params: [] }),
+      signal: AbortSignal.timeout(opts.timeoutMs)
+    });
+    header.latencyMs = Date.now() - start;
+    if (!res.ok) {
+      header.detail = `HTTP ${res.status}`;
+      return header;
+    }
+    const json = await res.json();
+    if (typeof json?.result === "number") header.slot = json.result;
+    else if (json?.error) header.detail = redactSecrets(`${json.error.code} ${json.error.message ?? ""}`.trim());
+    else header.detail = "unexpected getSlot response";
+  } catch (e) {
+    header.latencyMs = Date.now() - start;
+    const err = e;
+    header.detail = err.name === "TimeoutError" || err.name === "AbortError" ? `timeout after ${opts.timeoutMs}ms` : redactSecrets(err.message);
+  }
+  return header;
+}
+
+// src/onchain.ts
+var SYSTEM_PROGRAM = "11111111111111111111111111111111";
+var TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+var TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+var ASSOCIATED_TOKEN = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+var BPF_UPGRADEABLE_LOADER = "BPFLoaderUpgradeab1e11111111111111111111111";
+var BPF_LOADER_2 = "BPFLoader2111111111111111111111111111111111";
+var NATIVE_LOADER = "NativeLoader1111111111111111111111111111111";
+var MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+var COMPUTE_BUDGET = "ComputeBudget111111111111111111111111111111";
+var METAPLEX_TOKEN_METADATA = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
+var PYTH_ORACLE_MAINNET = "FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH";
+var PYTH_ORACLE_DEVNET = "gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s";
+var PYTH_SOLANA_RECEIVER = "rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ";
+var PYTH_PUSH_ORACLE = "pythWSnswVUd12oZpeFP8e9CVaEqJg25g1Vtc2biRsT";
+var WORMHOLE_CORE = "HDwcJBJXjL9FpJ7UBsYBtaDjsBUhuLCUYoz3zr8SWWaQ";
+var LOADER_OWNERS = /* @__PURE__ */ new Set([BPF_UPGRADEABLE_LOADER, BPF_LOADER_2, NATIVE_LOADER]);
+var KNOWN_PROGRAMS = [
+  { address: SYSTEM_PROGRAM, name: "System Program", expectedOwner: NATIVE_LOADER, cluster: "any" },
+  { address: TOKEN_PROGRAM, name: "SPL Token", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "any" },
+  { address: TOKEN_2022_PROGRAM, name: "Token-2022", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "any" },
+  { address: ASSOCIATED_TOKEN, name: "Associated Token Account", expectedOwner: BPF_LOADER_2, cluster: "any" },
+  { address: MEMO_PROGRAM, name: "Memo", expectedOwner: BPF_LOADER_2, cluster: "any" },
+  { address: COMPUTE_BUDGET, name: "Compute Budget", expectedOwner: NATIVE_LOADER, cluster: "any" },
+  { address: METAPLEX_TOKEN_METADATA, name: "Metaplex Token Metadata", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "any" },
+  { address: PYTH_ORACLE_MAINNET, name: "Pyth Oracle (legacy push)", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "mainnet" },
+  { address: PYTH_ORACLE_DEVNET, name: "Pyth Oracle (devnet)", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "devnet" },
+  { address: PYTH_SOLANA_RECEIVER, name: "Pyth Solana Receiver", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "any" },
+  { address: PYTH_PUSH_ORACLE, name: "Pyth Push Oracle", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "any" },
+  { address: WORMHOLE_CORE, name: "Wormhole Core Bridge (Pyth)", expectedOwner: BPF_UPGRADEABLE_LOADER, cluster: "any" }
+];
+var KNOWN_BY_ADDR = new Map(KNOWN_PROGRAMS.map((k) => [k.address, k]));
+var DEVNET_ONLY = /* @__PURE__ */ new Set([
+  PYTH_ORACLE_DEVNET
+  // Classic Anchor tutorial keypair often used as a fake program id in examples:
+  // (kept out of DEVNET_ONLY — handled as non-executable program instead)
+]);
+var ONCHAIN_RULES = [
+  {
+    id: "ONCHAIN-ACCOUNT-MISSING",
+    severity: "fail",
+    title: "Hard-coded account missing or closed on-chain",
+    summary: "A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account). The address is closed, never existed, or belongs to a different cluster.",
+    fix: "Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config switch.",
+    docs: ["https://solana.com/docs/rpc/http/getmultipleaccounts"]
+  },
+  {
+    id: "ONCHAIN-PROGRAM-NOT-EXECUTABLE",
+    severity: "fail",
+    title: "Hard-coded program ID is not executable on-chain",
+    summary: "A pubkey used as a program ID (PublicKey passed to Program / named PROGRAM_ID / similar) exists but executable=false. Calling it as a program will fail at runtime.",
+    fix: "Use the deployed program id for this cluster (check `solana program show` / the project's Anchor declare_id / IDL address).",
+    docs: ["https://solana.com/docs/rpc/http/getaccountinfo"]
+  },
+  {
+    id: "ONCHAIN-OWNER-MISMATCH",
+    severity: "warn",
+    title: "Account owner does not match the known program table",
+    summary: "A well-known program/oracle address was found, but its on-chain owner differs from the expected loader/host program. This often means a renamed deployment or a wrong-cluster address that still exists.",
+    fix: "Confirm the address against current docs (Pyth / SPL / Metaplex) and update the constant.",
+    docs: [
+      "https://docs.pyth.network/price-feeds/core/contract-addresses/solana",
+      "https://spl.solana.com/token"
+    ]
+  },
+  {
+    id: "ONCHAIN-DEVNET-ON-MAINNET",
+    severity: "warn",
+    title: "Known devnet-only address used in a mainnet context",
+    summary: "Source hard-codes an address that is documented as devnet-only (e.g. Pyth's devnet oracle program), while the doctor is probing a mainnet RPC.",
+    fix: "Switch to the mainnet program id, or select addresses from a cluster map keyed by the active RPC.",
+    docs: ["https://docs.pyth.network/price-feeds/core/contract-addresses/solana"]
+  }
+];
+var ONCHAIN_RULE_IDS = new Set(ONCHAIN_RULES.map((r) => r.id));
+var BATCH = 100;
+function looksMainnet(provider) {
+  if (provider.kind === "solami" || provider.kind === "public") return true;
+  return /mainnet/i.test(provider.url) && !/devnet|testnet|localhost|127\.0\.0\.1/i.test(provider.url);
+}
+async function rpcCall(ctx, method, params) {
+  const start = Date.now();
+  try {
+    const res = await ctx.fetch(ctx.provider.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": ctx.userAgent },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+      signal: AbortSignal.timeout(ctx.timeoutMs)
+    });
+    const ms = Date.now() - start;
+    if (res.status === 429 || res.status >= 500) {
+      return { ok: false, detail: `HTTP ${res.status}`, ms };
+    }
+    let json;
+    try {
+      json = await res.json();
+    } catch {
+      return { ok: false, detail: `HTTP ${res.status}, non-JSON`, ms };
+    }
+    if (json?.error) {
+      const code = json.error.code;
+      if (code === -32005 || code === -32429 || res.status === 429) {
+        return { ok: false, detail: redactSecrets(`${code} ${json.error.message ?? "rate limited"}`), ms };
+      }
+      return { ok: false, detail: redactSecrets(`${code} ${json.error.message ?? ""}`.trim()), ms };
+    }
+    return { ok: true, result: json.result, ms };
+  } catch (e) {
+    const err = e;
+    const reason = err.name === "TimeoutError" || err.name === "AbortError" ? `timeout after ${ctx.timeoutMs}ms` : err.message;
+    return { ok: false, detail: redactSecrets(reason), ms: Date.now() - start };
+  }
+}
+async function fetchAccounts(pubkeys, ctx) {
+  const out = /* @__PURE__ */ new Map();
+  if (pubkeys.length === 0) return out;
+  for (let i = 0; i < pubkeys.length; i += BATCH) {
+    const chunk = pubkeys.slice(i, i + BATCH);
+    const resp = await rpcCall(ctx, "getMultipleAccounts", [chunk, { encoding: "base64" }]);
+    if (!resp.ok) {
+      for (const pk of chunk) {
+        out.set(pk, { pubkey: pk, lookup: "inconclusive", detail: `getMultipleAccounts inconclusive: ${resp.detail}` });
+      }
+      continue;
+    }
+    const values = resp.result?.value ?? [];
+    for (let j = 0; j < chunk.length; j++) {
+      const pk = chunk[j];
+      const acc = values[j];
+      if (acc == null) {
+        out.set(pk, { pubkey: pk, lookup: "missing", detail: "account null (missing or closed)" });
+      } else {
+        out.set(pk, {
+          pubkey: pk,
+          lookup: "ok",
+          info: {
+            executable: !!acc.executable,
+            owner: String(acc.owner),
+            lamports: Number(acc.lamports) || 0,
+            space: typeof acc.space === "number" ? acc.space : void 0
+          },
+          detail: `owner=${acc.owner} executable=${!!acc.executable}`
+        });
+      }
+    }
+  }
+  return out;
+}
+function locationsOf(hits) {
+  return hits.map((h) => ({ file: h.file, line: h.line, snippet: h.snippet, mitigated: false }));
+}
+function finding(rule, hits, note, probeDetail, target) {
+  return {
+    ruleId: rule.id,
+    manifest: "package.json",
+    status: rule.severity,
+    severity: rule.severity,
+    title: rule.title,
+    summary: rule.summary,
+    fix: rule.fix,
+    docs: rule.docs,
+    note,
+    locations: locationsOf(hits),
+    probe: { source: "live", state: "drift", detail: probeDetail, target }
+  };
+}
+function meta(id2) {
+  return ONCHAIN_RULES.find((r) => r.id === id2);
+}
+async function checkOnChainAddresses(hits, ctx) {
+  if (hits.length === 0) return { findings: [], queried: 0, inconclusive: false };
+  const grouped = groupByPubkey(hits);
+  const pubkeys = [...grouped.keys()];
+  const accounts = await fetchAccounts(pubkeys, ctx);
+  const anyInconclusive = [...accounts.values()].some((a) => a.lookup === "inconclusive");
+  if (anyInconclusive && [...accounts.values()].every((a) => a.lookup === "inconclusive")) {
+    return {
+      findings: [],
+      queried: pubkeys.length,
+      inconclusive: true,
+      detail: accounts.values().next().value?.detail
+    };
+  }
+  const mainnet = ctx.isMainnet ?? looksMainnet(ctx.provider);
+  const target = `getMultipleAccounts @ ${ctx.provider.displayUrl}`;
+  const findings = [];
+  const ruleMissing = meta("ONCHAIN-ACCOUNT-MISSING");
+  const ruleExec = meta("ONCHAIN-PROGRAM-NOT-EXECUTABLE");
+  const ruleOwner = meta("ONCHAIN-OWNER-MISMATCH");
+  const ruleDevnet = meta("ONCHAIN-DEVNET-ON-MAINNET");
+  for (const [pk, locs] of grouped) {
+    const acc = accounts.get(pk);
+    if (!acc || acc.lookup === "inconclusive") continue;
+    const kinds = new Set(locs.map((l) => l.kind));
+    const treatAsProgram = kinds.has("program") || KNOWN_BY_ADDR.has(pk);
+    if (mainnet && (DEVNET_ONLY.has(pk) || KNOWN_BY_ADDR.get(pk)?.cluster === "devnet")) {
+      findings.push(
+        finding(
+          ruleDevnet,
+          locs,
+          `${pk.slice(0, 8)}\u2026 is documented for devnet; RPC provider is ${ctx.provider.label}`,
+          `${pk} flagged as devnet-only while probing ${ctx.provider.label}`,
+          target
+        )
+      );
+    }
+    if (acc.lookup === "missing") {
+      findings.push(
+        finding(ruleMissing, locs, `${pk} \u2192 null on ${ctx.provider.label}`, `${pk} \u2192 null (missing/closed)`, target)
+      );
+      continue;
+    }
+    const info = acc.info;
+    if (treatAsProgram && !info.executable) {
+      findings.push(
+        finding(
+          ruleExec,
+          locs,
+          `${pk} owner=${info.owner} executable=false`,
+          `${pk} \u2192 executable=false (owner ${info.owner})`,
+          target
+        )
+      );
+    }
+    const known = KNOWN_BY_ADDR.get(pk);
+    if (known && info.owner !== known.expectedOwner) {
+      const bothLoaders = LOADER_OWNERS.has(info.owner) && LOADER_OWNERS.has(known.expectedOwner);
+      if (!bothLoaders) {
+        findings.push(
+          finding(
+            ruleOwner,
+            locs,
+            `${known.name}: expected owner ${known.expectedOwner}, got ${info.owner}`,
+            `${pk} (${known.name}) owner=${info.owner}, expected ${known.expectedOwner}`,
+            target
+          )
+        );
+      }
+    }
+  }
+  return { findings, queried: pubkeys.length, inconclusive: anyInconclusive };
+}
+function filterOnChainFindings(findings, disabled) {
+  return findings.filter((f) => !disabled.has(f.ruleId));
+}
+
 // src/scanner.ts
 var import_node_fs = require("node:fs");
 var import_node_path = require("node:path");
@@ -2637,15 +3093,20 @@ function knownPackages(rules) {
 async function diagnose(root, opts) {
   const absRoot = (0, import_node_path2.resolve)(root);
   const manifests = opts.manifests ?? scan(absRoot);
+  const provider = opts.provider ?? resolveRpcProvider({
+    rpc: opts.rpc ?? opts.rpcUrl,
+    env: opts.env ?? process.env
+  });
   const ctx = {
     fetch: opts.fetch ?? globalThis.fetch,
     timeoutMs: opts.timeoutMs ?? 8e3,
-    rpcUrl: opts.rpcUrl ?? DEFAULT_RPC_URL,
+    rpcUrl: provider.url,
     registryUrl: opts.registryUrl ?? DEFAULT_REGISTRY,
     userAgent: `${TOOL_NAME}/${TOOL_VERSION}`
   };
   const probe = createProber(ctx);
   const known = knownPackages(opts.rules);
+  const disabled = new Set(opts.disabled ?? []);
   const pending = [];
   const packages = [];
   for (const m of manifests) {
@@ -2720,20 +3181,45 @@ async function diagnose(root, opts) {
       });
     }
   }
+  let rpcInfo;
+  if (!opts.offline) {
+    rpcInfo = await probeRpcHeader(provider, {
+      fetch: ctx.fetch,
+      timeoutMs: ctx.timeoutMs,
+      userAgent: ctx.userAgent
+    });
+    if (!opts.skipOnChain) {
+      const sources = manifests.flatMap((m) => m.sources);
+      const hits = extractAddresses(sources);
+      const onchain = await checkOnChainAddresses(hits, {
+        fetch: ctx.fetch,
+        timeoutMs: ctx.timeoutMs,
+        userAgent: ctx.userAgent,
+        provider
+      });
+      rpcInfo.onChainQueried = onchain.queried;
+      rpcInfo.onChainInconclusive = onchain.inconclusive;
+      if (onchain.detail) rpcInfo.detail = (rpcInfo.detail ? rpcInfo.detail + "; " : "") + onchain.detail;
+      findings.push(...filterOnChainFindings(onchain.findings, disabled));
+    }
+  }
   const order = { fail: 0, warn: 1, info: 2, pass: 3 };
   findings.sort((a, b) => order[a.status] - order[b.status] || a.manifest.localeCompare(b.manifest) || a.ruleId.localeCompare(b.ruleId));
   const summary = { pass: 0, info: 0, warn: 0, fail: 0 };
   for (const f of findings) summary[f.status]++;
+  const onChainEnabled = !opts.offline && !opts.skipOnChain;
+  const rulesLoaded = opts.rules.length + (onChainEnabled ? ONCHAIN_RULES.filter((r) => !disabled.has(r.id)).length : 0);
   return {
     tool: { name: TOOL_NAME, version: TOOL_VERSION },
     root: absRoot,
     mode: opts.offline ? "offline" : "live",
     generatedAt: (opts.now ? opts.now() : /* @__PURE__ */ new Date()).toISOString(),
-    rulesLoaded: opts.rules.length,
+    rulesLoaded,
     manifests: manifests.map((m) => m.path),
     packages,
     findings,
-    summary
+    summary,
+    rpc: rpcInfo
   };
 }
 function exitCodeFor(report, failOn = "fail") {
@@ -2754,6 +3240,14 @@ function renderMarkdown(report) {
   out.push(`### \u{1FA7A} Solana SDK Doctor \u2014 ${headline}`);
   out.push("");
   out.push(`**${s.fail}** fail \xB7 **${s.warn}** warn \xB7 **${s.info}** info \xB7 **${s.pass}** pass \u2014 ${report.mode} mode, ${report.rulesLoaded} rules, ${report.manifests.length} package.json`);
+  if (report.rpc) {
+    const bits = [`provider \`${report.rpc.provider}\``, `\`${report.rpc.url}\``];
+    if (report.rpc.slot !== void 0) bits.push(`slot **${report.rpc.slot}**`);
+    if (report.rpc.latencyMs !== void 0) bits.push(`latency **${report.rpc.latencyMs}ms**`);
+    if (report.rpc.onChainQueried !== void 0) bits.push(`on-chain addrs **${report.rpc.onChainQueried}**`);
+    out.push("");
+    out.push(`RPC: ${bits.join(" \xB7 ")}`);
+  }
   out.push("");
   if (report.findings.length === 0) {
     out.push("_No known Solana/oracle SDKs detected._");
@@ -2870,11 +3364,20 @@ function renderTable(report, opts = {}) {
   const paint = { pass: c.green, info: c.cyan, warn: c.yellow, fail: c.red };
   const out = [];
   const title = `\u{1FA7A} ${report.tool.name} v${report.tool.version}`;
-  const meta = `${report.mode} mode  \xB7  ${report.rulesLoaded} rules  \xB7  ${report.manifests.length} package.json`;
-  if (title.length + 5 + meta.length <= width) out.push(c.bold(title) + c.dim(`  \xB7  ${meta}`));
-  else out.push(c.bold(title), ...wrap2(meta.replace(/ {2}· {2}/g, " \xB7 "), width, "   ").map(c.dim));
+  const meta2 = `${report.mode} mode  \xB7  ${report.rulesLoaded} rules  \xB7  ${report.manifests.length} package.json`;
+  if (title.length + 5 + meta2.length <= width) out.push(c.bold(title) + c.dim(`  \xB7  ${meta2}`));
+  else out.push(c.bold(title), ...wrap2(meta2.replace(/ {2}· {2}/g, " \xB7 "), width, "   ").map(c.dim));
   const root = report.root.length + 9 > width ? "\u2026" + report.root.slice(report.root.length - (width - 10)) : report.root;
   out.push(c.dim(`   root: ${root}`));
+  if (report.rpc) {
+    const parts = [`rpc: ${report.rpc.provider}`, report.rpc.url];
+    if (report.rpc.slot !== void 0) parts.push(`slot ${report.rpc.slot}`);
+    if (report.rpc.latencyMs !== void 0) parts.push(`${report.rpc.latencyMs}ms`);
+    if (report.rpc.onChainQueried !== void 0) parts.push(`${report.rpc.onChainQueried} on-chain addrs`);
+    if (report.rpc.onChainInconclusive) parts.push("on-chain inconclusive");
+    if (report.rpc.detail) parts.push(report.rpc.detail);
+    out.push(...wrap2(parts.join("  \xB7  "), width, "   ").map(c.dim));
+  }
   out.push("");
   if (report.findings.length === 0) {
     out.push(...wrap2("No known Solana/oracle SDKs found in any package.json, and no code-level rules matched.", width, "").map(c.dim));
@@ -3428,12 +3931,19 @@ Options
   --disable <ids>        Comma-separated rule ids to skip
   --no-builtin           Only use rules passed via --rules
   --fail-on <level>      fail (default) | warn | never  - controls exit code
-  --rpc-url <url>        Solana RPC used by JSON-RPC probes (default ${DEFAULT_RPC_URL})
+  --rpc <url|solami>     RPC endpoint, or the keyword "solami" (uses SOLAMI_API_KEY).
+                         Aliases: --rpc-url. Default: Solami when SOLAMI_API_KEY is set,
+                         else $SOLANA_RPC_URL, else ${DEFAULT_RPC_URL}
   --timeout <ms>         Per-probe timeout (default 8000)
+  --no-onchain           Skip on-chain address drift checks
   --verbose, -v          Show details for passing rows too
   --no-color             Disable ANSI colors (also honours NO_COLOR)
   --version, -V          Print version
   --help, -h             Show this help
+
+Env
+  SOLAMI_API_KEY         Solami API key \u2192 https://rpc.solami.dev/sol?api_key=\u2026 (never logged)
+  SOLANA_RPC_URL         Fallback JSON-RPC URL when Solami is not configured
 
 Exit codes
   0  no findings at or above --fail-on
@@ -3454,6 +3964,7 @@ function parseArgs(argv) {
     noBuiltin: false,
     failOn: "fail",
     timeoutMs: 8e3,
+    skipOnChain: false,
     verbose: false,
     color: colorSupported()
   };
@@ -3504,8 +4015,9 @@ function parseArgs(argv) {
         a.failOn = f;
         break;
       }
+      case "--rpc":
       case "--rpc-url":
-        a.rpcUrl = value();
+        a.rpc = value();
         break;
       case "--timeout": {
         const n = Number(value());
@@ -3513,6 +4025,9 @@ function parseArgs(argv) {
         a.timeoutMs = n;
         break;
       }
+      case "--no-onchain":
+        a.skipOnChain = true;
+        break;
       case "-v":
       case "--verbose":
         a.verbose = true;
@@ -3564,9 +4079,21 @@ ${HELP}`);
     return 2;
   }
   if (args.command === "rules") {
-    if (args.format === "json") process.stdout.write(JSON.stringify(rules, null, 2) + "\n");
-    else for (const r of rules) process.stdout.write(`${r.severity.toUpperCase().padEnd(4)}  ${r.id.padEnd(38)} ${(r.package ?? "(source code)").padEnd(36)} ${r.probe ? `[probe:${r.probe.kind}]` : ""}
+    if (args.format === "json") {
+      process.stdout.write(JSON.stringify({ rules, onchain: ONCHAIN_RULES }, null, 2) + "\n");
+    } else {
+      for (const r of rules) {
+        process.stdout.write(`${r.severity.toUpperCase().padEnd(4)}  ${r.id.padEnd(38)} ${(r.package ?? "(source code)").padEnd(36)} ${r.probe ? `[probe:${r.probe.kind}]` : ""}
 `);
+      }
+      process.stdout.write(`
+On-chain address drift (live mode):
+`);
+      for (const r of ONCHAIN_RULES) {
+        process.stdout.write(`${r.severity.toUpperCase().padEnd(4)}  ${r.id.padEnd(38)} (on-chain)                           [probe:getMultipleAccounts]
+`);
+      }
+    }
     return 0;
   }
   if (!(0, import_node_fs3.existsSync)(args.path) || !(0, import_node_fs3.statSync)(args.path).isDirectory()) {
@@ -3574,12 +4101,31 @@ ${HELP}`);
 `);
     return 2;
   }
-  const report = await diagnose(args.path, { rules, offline: args.offline, rpcUrl: args.rpcUrl, timeoutMs: args.timeoutMs });
-  const text = render(report, args.format, { color: args.color && args.format === "table", verbose: args.verbose });
+  let provider;
+  try {
+    provider = resolveRpcProvider({ rpc: args.rpc });
+  } catch (e) {
+    if (e instanceof RpcConfigError) {
+      process.stderr.write(`error: ${e.message}
+`);
+      return 2;
+    }
+    throw e;
+  }
+  const report = await diagnose(args.path, {
+    rules,
+    offline: args.offline,
+    rpc: args.rpc,
+    provider,
+    timeoutMs: args.timeoutMs,
+    skipOnChain: args.skipOnChain,
+    disabled: args.disabled
+  });
+  const text = redactSecrets(render(report, args.format, { color: args.color && args.format === "table", verbose: args.verbose }));
   process.stdout.write(text);
   for (const file of args.outputs) {
     const fmt = /\.json$/i.test(file) ? "json" : /\.(md|markdown)$/i.test(file) ? "markdown" : "table";
-    (0, import_node_fs3.writeFileSync)(file, render(report, fmt, { verbose: args.verbose, color: false }));
+    (0, import_node_fs3.writeFileSync)(file, redactSecrets(render(report, fmt, { verbose: args.verbose, color: false })));
   }
   return exitCodeFor(report, args.failOn);
 }
@@ -3587,7 +4133,7 @@ if (require.main === module) {
   main(process.argv.slice(2)).then(
     (code) => process.exit(code),
     (err) => {
-      process.stderr.write(`fatal: ${err?.stack ?? err}
+      process.stderr.write(`fatal: ${redactSecrets(String(err?.stack ?? err))}
 `);
       process.exit(2);
     }

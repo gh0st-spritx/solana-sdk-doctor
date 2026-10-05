@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { existsSync, statSync, writeFileSync } from "node:fs";
 import { diagnose, exitCodeFor, type FailOn } from "./engine";
+import { ONCHAIN_RULES } from "./onchain";
 import { render, type Format } from "./report";
 import { colorSupported } from "./report/color";
 import { loadRules, RuleValidationError } from "./rules/registry";
 import { DEFAULT_RPC_URL } from "./probes";
+import { redactSecrets, resolveRpcProvider, RpcConfigError } from "./rpc";
 import { TOOL_NAME, TOOL_VERSION } from "./version";
 
 const HELP = `${TOOL_NAME} v${TOOL_VERSION}
@@ -24,12 +26,19 @@ Options
   --disable <ids>        Comma-separated rule ids to skip
   --no-builtin           Only use rules passed via --rules
   --fail-on <level>      fail (default) | warn | never  - controls exit code
-  --rpc-url <url>        Solana RPC used by JSON-RPC probes (default ${DEFAULT_RPC_URL})
+  --rpc <url|solami>     RPC endpoint, or the keyword "solami" (uses SOLAMI_API_KEY).
+                         Aliases: --rpc-url. Default: Solami when SOLAMI_API_KEY is set,
+                         else \$SOLANA_RPC_URL, else ${DEFAULT_RPC_URL}
   --timeout <ms>         Per-probe timeout (default 8000)
+  --no-onchain           Skip on-chain address drift checks
   --verbose, -v          Show details for passing rows too
   --no-color             Disable ANSI colors (also honours NO_COLOR)
   --version, -V          Print version
   --help, -h             Show this help
+
+Env
+  SOLAMI_API_KEY         Solami API key → https://rpc.solami.dev/sol?api_key=… (never logged)
+  SOLANA_RPC_URL         Fallback JSON-RPC URL when Solami is not configured
 
 Exit codes
   0  no findings at or above --fail-on
@@ -47,8 +56,9 @@ interface Args {
   disabled: string[];
   noBuiltin: boolean;
   failOn: FailOn;
-  rpcUrl?: string;
+  rpc?: string;
   timeoutMs: number;
+  skipOnChain: boolean;
   verbose: boolean;
   color: boolean;
 }
@@ -67,6 +77,7 @@ export function parseArgs(argv: string[]): Args | "help" | "version" {
     noBuiltin: false,
     failOn: "fail",
     timeoutMs: 8000,
+    skipOnChain: false,
     verbose: false,
     color: colorSupported(),
   };
@@ -100,13 +111,17 @@ export function parseArgs(argv: string[]): Args | "help" | "version" {
         a.failOn = f as FailOn;
         break;
       }
-      case "--rpc-url": a.rpcUrl = value(); break;
+      case "--rpc":
+      case "--rpc-url":
+        a.rpc = value();
+        break;
       case "--timeout": {
         const n = Number(value());
         if (!Number.isFinite(n) || n <= 0) throw new UsageError("--timeout must be a positive number");
         a.timeoutMs = n;
         break;
       }
+      case "--no-onchain": a.skipOnChain = true; break;
       case "-v": case "--verbose": a.verbose = true; break;
       case "--no-color": a.color = false; break;
       case "--color": a.color = true; break;
@@ -150,8 +165,17 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   if (args.command === "rules") {
-    if (args.format === "json") process.stdout.write(JSON.stringify(rules, null, 2) + "\n");
-    else for (const r of rules) process.stdout.write(`${r.severity.toUpperCase().padEnd(4)}  ${r.id.padEnd(38)} ${(r.package ?? "(source code)").padEnd(36)} ${r.probe ? `[probe:${r.probe.kind}]` : ""}\n`);
+    if (args.format === "json") {
+      process.stdout.write(JSON.stringify({ rules, onchain: ONCHAIN_RULES }, null, 2) + "\n");
+    } else {
+      for (const r of rules) {
+        process.stdout.write(`${r.severity.toUpperCase().padEnd(4)}  ${r.id.padEnd(38)} ${(r.package ?? "(source code)").padEnd(36)} ${r.probe ? `[probe:${r.probe.kind}]` : ""}\n`);
+      }
+      process.stdout.write(`\nOn-chain address drift (live mode):\n`);
+      for (const r of ONCHAIN_RULES) {
+        process.stdout.write(`${r.severity.toUpperCase().padEnd(4)}  ${r.id.padEnd(38)} (on-chain)                           [probe:getMultipleAccounts]\n`);
+      }
+    }
     return 0;
   }
 
@@ -160,12 +184,32 @@ export async function main(argv: string[]): Promise<number> {
     return 2;
   }
 
-  const report = await diagnose(args.path, { rules, offline: args.offline, rpcUrl: args.rpcUrl, timeoutMs: args.timeoutMs });
-  const text = render(report, args.format, { color: args.color && args.format === "table", verbose: args.verbose });
+  let provider;
+  try {
+    provider = resolveRpcProvider({ rpc: args.rpc });
+  } catch (e) {
+    if (e instanceof RpcConfigError) {
+      process.stderr.write(`error: ${e.message}\n`);
+      return 2;
+    }
+    throw e;
+  }
+
+  const report = await diagnose(args.path, {
+    rules,
+    offline: args.offline,
+    rpc: args.rpc,
+    provider,
+    timeoutMs: args.timeoutMs,
+    skipOnChain: args.skipOnChain,
+    disabled: args.disabled,
+  });
+  // Belt-and-braces: never emit a raw API key even if a future probe regresses.
+  const text = redactSecrets(render(report, args.format, { color: args.color && args.format === "table", verbose: args.verbose }));
   process.stdout.write(text);
   for (const file of args.outputs) {
     const fmt: Format = /\.json$/i.test(file) ? "json" : /\.(md|markdown)$/i.test(file) ? "markdown" : "table";
-    writeFileSync(file, render(report, fmt, { verbose: args.verbose, color: false }));
+    writeFileSync(file, redactSecrets(render(report, fmt, { verbose: args.verbose, color: false })));
   }
   return exitCodeFor(report, args.failOn);
 }
@@ -174,7 +218,7 @@ if (require.main === module) {
   main(process.argv.slice(2)).then(
     (code) => process.exit(code),
     (err) => {
-      process.stderr.write(`fatal: ${err?.stack ?? err}\n`);
+      process.stderr.write(`fatal: ${redactSecrets(String(err?.stack ?? err))}\n`);
       process.exit(2);
     },
   );

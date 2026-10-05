@@ -5,7 +5,8 @@
 `solana-sdk-doctor` is a CLI + GitHub Action that scans a repo's Solana / oracle
 dependencies and source code, then checks them against a registry of known drift:
 dead keyless endpoints, JSON-RPC methods removed from validators, renamed or
-deprecated packages, and breaking constructor changes that tutorials still teach.
+deprecated packages, breaking constructor changes that tutorials still teach,
+and hard-coded program/feed addresses that are missing or non-executable on-chain.
 In **live mode** it actually probes the documented endpoints, so the report says
 *what the network does today*, not what a README said a year ago.
 
@@ -99,8 +100,9 @@ solana-sdk-doctor rules             # list loaded rules
 | `--disable <ids>` | Comma-separated rule ids to skip. |
 | `--no-builtin` | Only use rules from `--rules`. |
 | `--fail-on fail\|warn\|never` | Exit-code threshold (default `fail`). |
-| `--rpc-url <url>` | RPC for JSON-RPC probes (default mainnet-beta). |
+| `--rpc <url\|solami>` | RPC endpoint, or the keyword `solami` (uses `SOLAMI_API_KEY`). Alias: `--rpc-url`. Default: Solami when `SOLAMI_API_KEY` is set, else `$SOLANA_RPC_URL`, else public mainnet-beta. |
 | `--timeout <ms>` | Per-probe timeout (default 8000). |
+| `--no-onchain` | Skip on-chain address drift checks. |
 | `-v, --verbose` | Details for passing rows too. |
 | `--no-color` | Disable colors (also honours `NO_COLOR`). |
 
@@ -151,6 +153,58 @@ On narrow terminals the table degrades instead of wrapping into noise: package n
 version), then the EVIDENCE and PACKAGE columns drop, and below ~65 columns rows stack vertically. The
 details blocks always carry the full text, word-wrapped to the terminal. Width comes from the TTY, or `COLUMNS`.
 
+## Live on-chain checks (Solami)
+
+Live mode does two extra things against a real Solana JSON-RPC endpoint:
+
+1. **Removed-RPC probes** — the existing `SOLANA-REMOVED-RPC-METHODS` rule POSTs deprecated methods (e.g. `getRecentBlockhash`) and reports `-32601 Method not found` when validators have dropped them.
+2. **On-chain address drift** — extracts hard-coded base58 pubkeys from source (`new PublicKey("…")`, `PROGRAM_ID` / feed constants, cluster maps; comment-aware), batch-queries them with `getMultipleAccounts`, and flags:
+   - account missing/closed → **FAIL**
+   - program ID not executable → **FAIL**
+   - owner mismatch vs a small known table (Token, Pyth receiver/push oracle, Metaplex, …) → **WARN**
+   - known devnet-only address used while probing mainnet → **WARN**
+
+Timeouts and rate limits are **inconclusive** (never fail the build by themselves). The report header shows the RPC provider, current slot, and latency. **API keys are never logged** (redacted to `***` in every format).
+
+### With Solami (recommended for the sidetrack demo)
+
+1. Create an account / key at [solami.dev/signup](https://solami.dev/signup) (free tier: no card; Superteam promo: `?ref=st-earn-sep-26`).
+2. Export the key and point the doctor at Solami:
+
+```bash
+export SOLAMI_API_KEY=sk_…          # never commit this
+npm run build
+
+# keyword form — constructs https://rpc.solami.dev/sol?api_key=…
+node dist/cli.js fixtures/demo-dapp --rpc solami
+
+# equivalent: auto-select Solami whenever SOLAMI_API_KEY is set
+node dist/cli.js fixtures/demo-dapp
+
+# any other Solana JSON-RPC also works
+node dist/cli.js fixtures/demo-dapp --rpc https://api.mainnet-beta.solana.com
+```
+
+Solami endpoint facts (from [solami.dev/docs/endpoints](https://solami.dev/docs/endpoints)):
+
+| Product | URL | Auth |
+|---|---|---|
+| JSON-RPC | `https://rpc.solami.dev/sol` | `?api_key=` |
+| WebSocket | `wss://ws.solami.dev/ws/sol` | `?api_key=` |
+| Data / account API | `https://api.solami.dev` | `Bearer` or `?api_key=` |
+
+Region pin: `https://fra.rpc.solami.dev/sol?api_key=…` (also `nyc`, `ams`). Free tier ≈ 10 rps.
+
+### GitHub Action
+
+```yaml
+- uses: gh0st-spritx/solana-sdk-doctor@master
+  with:
+    path: .
+    rpc-url: solami
+    solami-api-key: ${{ secrets.SOLAMI_API_KEY }}
+```
+
 ## How it works
 
 ```
@@ -160,6 +214,7 @@ source + docs   ──►          ──► code matches (file:line, mitigated?
 rule registry (JSON) ─────────────►│ engine: version gate → code gate → mitigation → probe
                                    │
                        live probe (http | jsonrpc | npm-deprecated | npm-published)
+                       + on-chain getMultipleAccounts (address drift)
                        or --offline cached verdict
                                    ▼
                      table / json / markdown  +  CI exit code
@@ -199,8 +254,12 @@ rule registry (JSON) ─────────────►│ engine: versi
 | `ANCHOR-PROJECT-SERUM-PACKAGE` | @project-serum/anchor | warn | npm: successor published |
 | `ANCHOR-PROGRAM-CTOR-0.30` | @coral-xyz/anchor `>=0.30` + `new Program(idl, programId, provider)` | fail | static |
 | `ANCHOR-RENAMED-ANCHOR-LANG-CORE` | @coral-xyz/anchor | warn | npm: `@anchor-lang/core` published |
+| `ONCHAIN-ACCOUNT-MISSING` | hard-coded pubkey (live) | fail | `getMultipleAccounts` → null |
+| `ONCHAIN-PROGRAM-NOT-EXECUTABLE` | program-id context (live) | fail | account exists, `executable=false` |
+| `ONCHAIN-OWNER-MISMATCH` | known program table (live) | warn | owner ≠ expected loader/host |
+| `ONCHAIN-DEVNET-ON-MAINNET` | known-devnet address (live) | warn | e.g. Pyth devnet oracle on mainnet RPC |
 
-`solana-sdk-doctor rules` prints the live list.
+`solana-sdk-doctor rules` prints the live list (built-ins + on-chain family).
 
 ## Writing rules
 
@@ -295,7 +354,8 @@ What the action does:
 | `fail-on` | `fail` | `fail` \| `warn` \| `never` |
 | `rules` | | extra rule packs (comma/newline separated) |
 | `disable` | | rule ids to skip |
-| `rpc-url` | | RPC for JSON-RPC probes |
+| `rpc-url` | | RPC URL or `solami` |
+| `solami-api-key` | | Solami API key (never logged) |
 | `comment` | `true` | sticky PR comment |
 | `github-token` | `github.token` | needs `pull-requests: write` |
 
@@ -329,6 +389,7 @@ npm test            # node:test via tsx; no network (probes use an injected fetc
 
 ## Roadmap
 
+- [x] Live on-chain address drift via Solami / any JSON-RPC (`--rpc solami`, `SOLAMI_API_KEY`)
 - [ ] Publish to npm (`npx solana-sdk-doctor`) and tag the Action `v0`
 - [ ] More rule packs: Switchboard On-Demand, Jupiter API (v6 → new hosts), Helius/Triton RPC, Metaplex Umi, `@solana/spl-token`, wallet-adapter
 - [ ] Rust side: `Cargo.toml` (anchor-lang, solana-program → split crates, pyth-solana-receiver-sdk)

@@ -22,7 +22,10 @@ inputs:
     description: "Comma-separated rule ids to skip."
     default: ""
   rpc-url:
-    description: "Solana RPC URL used by JSON-RPC probes (defaults to mainnet-beta)."
+    description: "Solana RPC URL, or the keyword solami (uses solami-api-key / SOLAMI_API_KEY). Defaults to Solami when a key is set, else public mainnet-beta."
+    default: ""
+  solami-api-key:
+    description: "Solami API key (never logged). When set, live probes and on-chain checks use https://rpc.solami.dev/sol."
     default: ""
   comment:
     description: "Post / update a sticky PR comment with the report (pull_request events only)."
@@ -79,6 +82,7 @@ runs:
         SDK_DOCTOR_RULES: ${{ inputs.rules }}
         SDK_DOCTOR_DISABLE: ${{ inputs.disable }}
         SDK_DOCTOR_RPC_URL: ${{ inputs.rpc-url }}
+        SOLAMI_API_KEY: ${{ inputs.solami-api-key }}
         FORCE_COLOR: "1"
       run: |
         set +e
@@ -87,7 +91,7 @@ runs:
         args=("$SDK_DOCTOR_PATH" --fail-on "$SDK_DOCTOR_FAIL_ON" -o "$md" -o "$js")
         [ "$SDK_DOCTOR_OFFLINE" = "true" ] && args+=(--offline)
         [ -n "$SDK_DOCTOR_DISABLE" ] && args+=(--disable "$SDK_DOCTOR_DISABLE")
-        [ -n "$SDK_DOCTOR_RPC_URL" ] && args+=(--rpc-url "$SDK_DOCTOR_RPC_URL")
+        [ -n "$SDK_DOCTOR_RPC_URL" ] && args+=(--rpc "$SDK_DOCTOR_RPC_URL")
         while IFS= read -r f; do
           f="$(echo "$f" | xargs)"; [ -n "$f" ] && args+=(--rules "$f")
         done < <(printf '%s\n' "$SDK_DOCTOR_RULES" | tr ',' '\n')

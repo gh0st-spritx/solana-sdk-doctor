@@ -4,4 +4,7 @@ export { runProbe, createProber, type Fetcher, type ProbeContext } from "./probe
 export { scan, type Manifest, type SourceFile } from "./scanner";
 export { findMatches } from "./code";
 export { render, renderMarkdown, renderTable, type Format } from "./report";
+export { resolveRpcProvider, redactSecrets, solamiRpcUrl, probeRpcHeader, SOLAMI_RPC_BASE, type RpcProvider } from "./rpc";
+export { extractAddresses, isValidPubkey, decodeBase58, type ExtractedAddress } from "./addresses";
+export { checkOnChainAddresses, ONCHAIN_RULES, KNOWN_PROGRAMS, fetchAccounts } from "./onchain";
 export * from "./types";
