@@ -102,8 +102,8 @@ runs:
         echo "report-json=$js" >> "$GITHUB_OUTPUT"
         echo "report-markdown=$md" >> "$GITHUB_OUTPUT"
         if [ -f "$js" ]; then
-          echo "fail-count=$(node -p "require('$js').summary.fail")" >> "$GITHUB_OUTPUT"
-          echo "warn-count=$(node -p "require('$js').summary.warn")" >> "$GITHUB_OUTPUT"
+          echo "fail-count=$(node -e "process.stdout.write(String(require('$js').summary.fail))")" >> "$GITHUB_OUTPUT"
+          echo "warn-count=$(node -e "process.stdout.write(String(require('$js').summary.warn))")" >> "$GITHUB_OUTPUT"
           cat "$md" >> "$GITHUB_STEP_SUMMARY"
           # Inline annotations on the offending lines.
           node -e '
