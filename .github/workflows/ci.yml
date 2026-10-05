@@ -1,0 +1,52 @@
+name: ci
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+      - name: action-dist/ bundle is up to date
+        run: |
+          npm run bundle
+          git diff --exit-code -- action-dist/ || { echo "::error::action-dist/ is stale - run 'npm run bundle' and commit it"; exit 1; }
+
+  # Dogfood the action: the healthy fixture must pass, the drifted one must fail.
+  action-healthy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          path: fixtures/healthy-dapp
+          fail-on: warn
+          comment: "false"
+
+  action-drifted:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: doctor
+        uses: ./
+        continue-on-error: true
+        with:
+          path: fixtures/demo-dapp
+          comment: "false"
+      - name: Expect drift to be detected
+        run: |
+          test "${{ steps.doctor.outputs.exit-code }}" = "1"
+          test "${{ steps.doctor.outputs.fail-count }}" -ge 4
