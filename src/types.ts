@@ -62,8 +62,13 @@ export interface JsonRpcProbe {
   url: string;
   method: string;
   params?: unknown[];
-  /** JSON-RPC error codes that prove drift, e.g. -32601 (method not found). */
-  driftWhen: { rpcErrorCode: number[] };
+  /**
+   * JSON-RPC error codes that prove drift, e.g. -32601 (method not found).
+   * `rpcErrorMessage` (case-insensitive regex) also counts as drift when the provider uses a
+   * different code for the same condition, e.g. Solami answers removed methods with
+   * -32600 "Invalid Request: unsupported method `getRecentBlockhash`".
+   */
+  driftWhen: { rpcErrorCode: number[]; rpcErrorMessage?: string };
 }
 
 export interface NpmDeprecatedProbe {

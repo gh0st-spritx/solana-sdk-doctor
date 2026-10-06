@@ -2602,7 +2602,9 @@ async function runProbe(probe, ctx) {
           return { state: "inconclusive", detail: `HTTP ${res.status}, non-JSON body`, target, httpStatus: res.status, ms };
         }
         const code = json?.error?.code;
-        if (typeof code === "number" && probe.driftWhen.rpcErrorCode.includes(code)) {
+        const message = typeof json?.error?.message === "string" ? json.error.message : "";
+        const msgRe = probe.driftWhen.rpcErrorMessage ? new RegExp(probe.driftWhen.rpcErrorMessage, "i") : void 0;
+        if (typeof code === "number" && probe.driftWhen.rpcErrorCode.includes(code) || json?.error && msgRe && msgRe.test(message)) {
           return { state: "drift", detail: `${probe.method} -> ${code} "${json.error.message}"`, target, httpStatus: res.status, ms };
         }
         if (json && "result" in json) return { state: "healthy", detail: `${probe.method} -> result OK`, target, httpStatus: res.status, ms };
@@ -3653,7 +3655,8 @@ var builtin_default = {
         driftWhen: {
           rpcErrorCode: [
             -32601
-          ]
+          ],
+          rpcErrorMessage: "unsupported method|method not found"
         }
       },
       verified: {

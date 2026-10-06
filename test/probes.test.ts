@@ -39,6 +39,28 @@ test("jsonrpc probe: -32601 is drift, result is healthy, {{rpcUrl}} is expanded"
   assert.equal(limited.state, "inconclusive");
 });
 
+test("jsonrpc probe: provider-specific 'unsupported method' message is drift (Solami -32600)", async () => {
+  const probe = {
+    kind: "jsonrpc" as const,
+    url: "{{rpcUrl}}",
+    method: "getRecentBlockhash",
+    driftWhen: { rpcErrorCode: [-32601], rpcErrorMessage: "unsupported method|method not found" },
+  };
+  const solami = fakeFetch({
+    "rpc.test": json(200, { jsonrpc: "2.0", id: 1, error: { code: -32600, message: "Invalid Request: unsupported method `getRecentBlockhash`" } }),
+  });
+  const r = await runProbe(probe, ctx(solami.fetch));
+  assert.equal(r.state, "drift");
+  assert.match(r.detail, /-32600 "Invalid Request: unsupported method/);
+  // A generic -32600 without the message stays inconclusive.
+  const generic = await runProbe(probe, ctx(fakeFetch({ "rpc.test": json(200, { error: { code: -32600, message: "Invalid Request" } }) }).fetch));
+  assert.equal(generic.state, "inconclusive");
+  // Without rpcErrorMessage the old behaviour holds.
+  const strict = { ...probe, driftWhen: { rpcErrorCode: [-32601] } };
+  const s2 = await runProbe(strict, ctx(solami.fetch));
+  assert.equal(s2.state, "inconclusive");
+});
+
 test("npm-deprecated probe reads the deprecation notice", async () => {
   const probe = { kind: "npm-deprecated" as const, package: "@scope/old" };
   const f = fakeFetch({ "registry.test": json(200, { version: "1.2.3", deprecated: "use @scope/new" }) });

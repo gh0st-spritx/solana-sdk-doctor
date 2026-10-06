@@ -152,7 +152,8 @@
         "driftWhen": {
           "rpcErrorCode": [
             -32601
-          ]
+          ],
+          "rpcErrorMessage": "unsupported method|method not found"
         }
       },
       "verified": {

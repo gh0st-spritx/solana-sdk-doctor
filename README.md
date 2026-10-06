@@ -307,7 +307,7 @@ Rules are plain JSON (see [`src/rules/builtin.json`](src/rules/builtin.json) and
 Probe kinds:
 
 * `http` – `driftWhen.status` / `driftWhen.bodyIncludes`; healthy on 2xx (or `healthyWhen.status`).
-* `jsonrpc` – POSTs `{method, params}` to `url` (`{{rpcUrl}}` = `--rpc-url`); drift on `driftWhen.rpcErrorCode`.
+* `jsonrpc` – POSTs `{method, params}` to `url` (`{{rpcUrl}}` = `--rpc-url`); drift on `driftWhen.rpcErrorCode`, or when the error message matches the optional `driftWhen.rpcErrorMessage` regex (Solami reports removed methods as `-32600 "unsupported method …"`).
 * `npm-deprecated` – drift if `package@version` (default `latest`) carries an npm deprecation notice.
 * `npm-published` – drift if a successor `package` exists on npm (renames).
 
