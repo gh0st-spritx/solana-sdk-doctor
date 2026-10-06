@@ -157,7 +157,7 @@ details blocks always carry the full text, word-wrapped to the terminal. Width c
 
 Live mode does two extra things against a real Solana JSON-RPC endpoint:
 
-1. **Removed-RPC probes** — the existing `SOLANA-REMOVED-RPC-METHODS` rule POSTs deprecated methods (e.g. `getRecentBlockhash`) and reports `-32601 Method not found` when validators have dropped them.
+1. **Removed-RPC probes** — the existing `SOLANA-REMOVED-RPC-METHODS` rule POSTs deprecated methods (e.g. `getRecentBlockhash`) and reports drift when validators have dropped them: `-32601 Method not found` on public mainnet-beta, `-32600 unsupported method` on Solami.
 2. **On-chain address drift** — extracts hard-coded base58 pubkeys from source (`new PublicKey("…")`, `PROGRAM_ID` / feed constants, cluster maps; comment-aware), batch-queries them with `getMultipleAccounts`, and flags:
    - account missing/closed → **FAIL**
    - program ID not executable → **FAIL**

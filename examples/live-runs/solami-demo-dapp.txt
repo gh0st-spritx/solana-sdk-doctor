@@ -1,0 +1,209 @@
+🩺 solana-sdk-doctor v0.1.0  ·  live mode  ·  16 rules  ·  2 package.json
+   root: /workspace/colosseum/solana-sdk-doctor/fixtures/demo-dapp
+   rpc: solami · https://rpc.solami.dev/sol?api_key=*** · slot 453907452 · 165ms · 3 on-chain addrs
+
+  STATUS  RULE                                  PACKAGE                     FINDING                          EVIDENCE
+  ──────  ────────────────────────────────────  ──────────────────────────  ───────────────────────────────  ───────────────────────────────
+  📦 package.json
+  FAIL    ANCHOR-PROGRAM-CTOR-0.30              @coral-xyz/anchor@0.30.1    Pre-0.30 new Program(idl, prog…  1 call site
+  FAIL    ONCHAIN-ACCOUNT-MISSING               (source code)               Hard-coded account missing or …  live: gSbePebfvPy7tRqimPoVecS2…
+  FAIL    ONCHAIN-ACCOUNT-MISSING               (source code)               Hard-coded account missing or …  live: 61xbcX6texMRKS4qzDhbGEnj…
+  FAIL    ONCHAIN-PROGRAM-NOT-EXECUTABLE        (source code)               Hard-coded program ID is not e…  live: Fg6PaFpoGXkYsidMpWTK6W2B…
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@3.1.0  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  FAIL    PYTH-HERMES-RAW-ENDPOINT              (source code)               Raw keyless calls to hermes.py…  live: HTTP 401 "unauthorized"
+  FAIL    SOLANA-REMOVED-RPC-METHODS            @solana/web3.js@1.95.0      Calls RPC methods removed from…  live: -32600 "Invalid Request:…
+  WARN    ANCHOR-RENAMED-ANCHOR-LANG-CORE       @coral-xyz/anchor@0.30.1    Renamed to @anchor-lang/core i…  live: @anchor-lang/core@1.2.1 …
+  WARN    ONCHAIN-DEVNET-ON-MAINNET             (source code)               Known devnet-only address used…  live: gSbePebfvPy7tRqimPoVecS2…
+  WARN    SOLANA-CONFIRM-TX-STRING              @solana/web3.js@1.95.0      Deprecated confirmTransaction(…  1 call site
+  WARN    SOLANA-PUBLIC-RPC-HARDCODED           (source code)               Hard-coded public mainnet-beta…  1 call site
+  INFO    SOLANA-WEB3JS-V1-MAINTENANCE          @solana/web3.js@1.95.0      web3.js 1.x is in maintenance …  live: @solana/kit@8.4.0 is pub…
+  📦 packages/legacy-bot/package.json
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@2.1.0  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  WARN    ANCHOR-PROJECT-SERUM-PACKAGE          @project-serum/anc…@0.26.0  Abandoned package (last releas…  live: @anchor-lang/core@1.2.1 …
+  WARN    PYTH-HERMES-NO-ACCESSTOKEN-OPTION     @pythnetwork/hermes…@2.1.0  No `accessToken` option before…  static rule
+  WARN    PYTH-PRICE-SERVICE-CLIENT-DEPRECATED  @pythnetwork/price-…@1.9.0  Package is deprecated on npm     live: npm deprecated 1.11.0: "…
+
+FAIL ANCHOR-PROGRAM-CTOR-0.30 in package.json
+  @coral-xyz/anchor@0.30.1
+  Pre-0.30 new Program(idl, programId, provider)
+  Since Anchor 0.30 the constructor is `new Program(idl, provider?)`; the program id is read from `idl.address`. The old
+  3-argument form, still common in tutorials, passes the programId where the provider is expected.
+  at     src/program.ts:10  export const program = new anchor.Program(idl as anchor.Idl, programId, provider);
+  fix    Use `new Program(idl as MyProgram, provider)` with a 0.30+ IDL that contains `address`.
+  docs   https://www.anchor-lang.com/docs/updates/release-notes/0-30-0
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://rpc.solami.dev/sol?api_key=***
+         → gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s → null (missing/closed)
+  at     src/program.ts:13  export const PYTH_PROGRAM_ID = new PublicKey("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
+  note   gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s → null on solami
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://rpc.solami.dev/sol?api_key=***
+         → 61xbcX6texMRKS4qzDhbGEnjenYLJTHD8wXypY2BnaHz → null (missing/closed)
+  at     src/program.ts:16  export const DEAD_ACCOUNT = new PublicKey("61xbcX6texMRKS4qzDhbGEnjenYLJTHD8wXypY2BnaHz");
+  note   61xbcX6texMRKS4qzDhbGEnjenYLJTHD8wXypY2BnaHz → null on solami
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-PROGRAM-NOT-EXECUTABLE in package.json
+  Hard-coded program ID is not executable on-chain
+  A pubkey used as a program ID (PublicKey passed to Program / named PROGRAM_ID / similar) exists but executable=false.
+  Calling it as a program will fail at runtime.
+  probe  [live] getMultipleAccounts @ https://rpc.solami.dev/sol?api_key=***
+         → Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS → executable=false (owner 11111111111111111111111111111111)
+  at     src/program.ts:6  const programId = new anchor.web3.PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+  note   Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS owner=11111111111111111111111111111111 executable=false
+  fix    Use the deployed program id for this cluster (check `solana program show` / the project's Anchor declare_id /
+         IDL address).
+  docs   https://solana.com/docs/rpc/http/getaccountinfo
+
+FAIL PYTH-HERMES-KEYLESS-401 in package.json
+  @pythnetwork/hermes-client@3.1.0
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (507ms)
+  at     README.md:6  const connection = new HermesClient("https://hermes.pyth.network", {});
+  at     src/prices.ts:4  const connection = new HermesClient("https://hermes.pyth.network", {});
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-RAW-ENDPOINT in package.json
+  Raw keyless calls to hermes.pyth.network
+  Code calls the public Hermes REST/SSE endpoint directly (fetch/axios/curl) without an Authorization header or
+  ACCESS_TOKEN. Keyless price-update requests now return HTTP 401.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (507ms)
+  at     src/raw-hermes.ts:4  "https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7a…
+  fix    Send `Authorization: Bearer *** (REST) or `?ACCESS_TOKEN=***` (SSE/WebSocket), or use
+         @pythnetwork/hermes-client >= 3.1.0 with `accessToken`.
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL SOLANA-REMOVED-RPC-METHODS in package.json
+  @solana/web3.js@1.95.0
+  Calls RPC methods removed from validators
+  web3.js 1.x still exposes helpers like getRecentBlockhash / getConfirmedTransaction / getFees, but Agave 2.x RPC nodes
+  removed the underlying methods. They now fail with -32601 "Method not found" at runtime even though they type-check.
+  probe  [live] RPC getRecentBlockhash @ https://rpc.solami.dev/sol?api_key=***
+         → getRecentBlockhash -> -32600 "Invalid Request: unsupported method `getRecentBlockhash`" (385ms)
+  at     src/send.ts:7  const { blockhash } = await connection.getRecentBlockhash();
+  at     src/send.ts:18  return connection.getConfirmedTransaction(sig);
+  fix    Use getLatestBlockhash, getTransaction, getSignaturesForAddress, getBlock/getBlocks, getFeeForMessage instead.
+  docs   https://solana.com/docs/rpc/deprecated
+  docs   https://github.com/anza-xyz/agave/wiki/Agave-v2.0-Transition-Guide
+
+FAIL PYTH-HERMES-KEYLESS-401 in packages/legacy-bot/package.json
+  @pythnetwork/hermes-client@2.1.0
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (507ms)
+  at     packages/legacy-bot/index.js:4  const hermes = new HermesClient("https://hermes.pyth.network", {});
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+WARN ANCHOR-RENAMED-ANCHOR-LANG-CORE in package.json
+  @coral-xyz/anchor@0.30.1
+  Renamed to @anchor-lang/core in Anchor 1.0
+  Anchor 1.0 (and 0.31.2+ release notes) moved the TypeScript client to @anchor-lang/core; the @coral-xyz/* line is
+  legacy and is not the supported path for new releases.
+  probe  [live] npm @anchor-lang/core
+         → @anchor-lang/core@1.2.1 is published (659ms)
+  fix    npm i @anchor-lang/core and replace imports from "@coral-xyz/anchor" (including dist/cjs/idl) with
+         "@anchor-lang/core".
+  docs   https://www.anchor-lang.com/docs/updates/release-notes/1-0-0
+
+WARN ONCHAIN-DEVNET-ON-MAINNET in package.json
+  Known devnet-only address used in a mainnet context
+  Source hard-codes an address that is documented as devnet-only (e.g. Pyth's devnet oracle program), while the doctor
+  is probing a mainnet RPC.
+  probe  [live] getMultipleAccounts @ https://rpc.solami.dev/sol?api_key=***
+         → gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s flagged as devnet-only while probing solami
+  at     src/program.ts:13  export const PYTH_PROGRAM_ID = new PublicKey("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
+  note   gSbePebf… is documented for devnet; RPC provider is solami
+  fix    Switch to the mainnet program id, or select addresses from a cluster map keyed by the active RPC.
+  docs   https://docs.pyth.network/price-feeds/core/contract-addresses/solana
+
+WARN SOLANA-CONFIRM-TX-STRING in package.json
+  @solana/web3.js@1.95.0
+  Deprecated confirmTransaction(signature)
+  Passing a bare signature string (instead of a { signature, blockhash, lastValidBlockHeight } strategy) relies on a
+  fixed timeout instead of blockhash expiry, so confirmations randomly time out or report false failures under load.
+  at     src/send.ts:13  await connection.confirmTransaction(sig, "confirmed");
+  fix    Call `connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, commitment)` using the
+         values from getLatestBlockhash().
+  docs   https://solana.com/developers/guides/advanced/confirmation
+
+WARN SOLANA-PUBLIC-RPC-HARDCODED in package.json
+  Hard-coded public mainnet-beta RPC URL
+  api.mainnet-beta.solana.com is rate-limited and not intended for production apps; examples that hard-code it start
+  returning 429s under real traffic.
+  at     src/send.ts:3  const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+  fix    Read the RPC URL from configuration (e.g. process.env.SOLANA_RPC_URL) and use a dedicated RPC provider in
+         production.
+  docs   https://solana.com/docs/references/clusters
+
+WARN ANCHOR-PROJECT-SERUM-PACKAGE in packages/legacy-bot/package.json
+  @project-serum/anchor@0.26.0
+  Abandoned package (last release 2022)
+  The Anchor TS client moved to @coral-xyz/anchor in 0.27, and to @anchor-lang/core in Anchor 1.0. The old package never
+  gets fixes or IDL-format support.
+  probe  [live] npm @anchor-lang/core
+         → @anchor-lang/core@1.2.1 is published (659ms)
+  fix    Replace with @anchor-lang/core (Anchor >= 1.0) or @coral-xyz/anchor (legacy 0.x) and update imports.
+  docs   https://www.anchor-lang.com/docs/updates/changelog
+
+WARN PYTH-HERMES-NO-ACCESSTOKEN-OPTION in packages/legacy-bot/package.json
+  @pythnetwork/hermes-client@2.1.0
+  No `accessToken` option before 3.1.0
+  The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0.
+  Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be
+  authenticated cleanly.
+  fix    npm i @pythnetwork/hermes-client@^3.1.0
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions
+
+WARN PYTH-PRICE-SERVICE-CLIENT-DEPRECATED in packages/legacy-bot/package.json
+  @pythnetwork/price-service-client@1.9.0
+  Package is deprecated on npm
+  npm marks this package as deprecated and no longer maintained. Tutorials still reference it, but it will not receive
+  the Hermes auth changes.
+  probe  [live] npm deprecation @pythnetwork/price-service-client@latest
+         → npm deprecated 1.11.0: "This package is deprecated and is no longer maintained. Please use
+           @pythnetwork/hermes-client instead." (640ms)
+  fix    Migrate to @pythnetwork/hermes-client >= 3.1.0 (and configure an accessToken).
+  docs   https://www.npmjs.com/package/@pythnetwork/price-service-client
+
+INFO SOLANA-WEB3JS-V1-MAINTENANCE in package.json
+  @solana/web3.js@1.95.0
+  web3.js 1.x is in maintenance mode
+  New development happens in @solana/kit (formerly web3.js 2.0). 1.x still works but receives fixes only.
+  probe  [live] npm @solana/kit
+         → @solana/kit@8.4.0 is published (692ms)
+  fix    Plan a migration to @solana/kit for new code; keep 1.x for libraries that still require it (e.g. Anchor
+         clients).
+  docs   https://github.com/anza-xyz/kit
+  docs   https://www.npmjs.com/package/@solana/kit
+
+Summary: 8 fail, 7 warn, 1 info, 0 pass

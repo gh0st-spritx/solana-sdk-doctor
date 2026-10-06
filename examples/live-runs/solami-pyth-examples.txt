@@ -1,0 +1,327 @@
+🩺 solana-sdk-doctor v0.1.0  ·  live mode  ·  16 rules  ·  23 package.json
+   root: /workspace/colosseum/scan/pyth-examples
+   rpc: solami · https://rpc.solami.dev/sol?api_key=*** · slot 453907458 · 319ms · 5 on-chain addrs
+
+  STATUS  RULE                                  PACKAGE                     FINDING                          EVIDENCE
+  ──────  ────────────────────────────────────  ──────────────────────────  ───────────────────────────────  ───────────────────────────────
+  📦 lazer/js/package.json
+  FAIL    ANCHOR-PROGRAM-CTOR-0.30              @coral-xyz/anchor@0.30.1    Pre-0.30 new Program(idl, prog…  2 call sites
+  WARN    ANCHOR-RENAMED-ANCHOR-LANG-CORE       @coral-xyz/anchor@0.30.1    Renamed to @anchor-lang/core i…  live: @anchor-lang/core@1.2.1 …
+  INFO    SOLANA-WEB3JS-V1-MAINTENANCE          @solana/web3.js@1.98.0      web3.js 1.x is in maintenance …  live: @solana/kit@8.4.0 is pub…
+  📦 package.json
+  FAIL    ONCHAIN-ACCOUNT-MISSING               (source code)               Hard-coded account missing or …  live: HU64YGK66e1wdxD83D3snGuZ…
+  FAIL    ONCHAIN-ACCOUNT-MISSING               (source code)               Hard-coded account missing or …  live: 2e5gZD3suxgJgkCg4pkoogxD…
+  📦 price_feeds/evm/chainlink_migration/package.json
+  FAIL    PYTH-HERMES-RAW-ENDPOINT              (source code)               Raw keyless calls to hermes.py…  live: HTTP 401 "unauthorized"
+  📦 price_feeds/evm/pyth_sample/package.json
+  FAIL    PYTH-HERMES-RAW-ENDPOINT              (source code)               Raw keyless calls to hermes.py…  live: HTTP 401 "unauthorized"
+  📦 price_feeds/fuel/fetch-and-update-btc-price/package.json
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@1.0.4  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  WARN    PYTH-HERMES-NO-ACCESSTOKEN-OPTION     @pythnetwork/hermes…@1.0.4  No `accessToken` option before…  static rule
+  📦 price_feeds/fuel/sdk_js_usage/package.json
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@1.0.2  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  WARN    PYTH-HERMES-NO-ACCESSTOKEN-OPTION     @pythnetwork/hermes…@1.0.2  No `accessToken` option before…  static rule
+  WARN    PYTH-PRICE-SERVICE-CLIENT-DEPRECATED  @pythnetwork/price-…@1.9.0  Package is deprecated on npm     live: npm deprecated 1.11.0: "…
+  📦 price_feeds/solana/send_usd/app/package.json
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@2.0.0  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  WARN    PYTH-HERMES-NO-ACCESSTOKEN-OPTION     @pythnetwork/hermes…@2.0.0  No `accessToken` option before…  static rule
+  INFO    SOLANA-WEB3JS-V1-MAINTENANCE          @solana/web3.js@1.91.8      web3.js 1.x is in maintenance …  live: @solana/kit@8.4.0 is pub…
+  📦 price_feeds/ton/pyth-connector/package.json
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@2.0.0  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  WARN    PYTH-HERMES-NO-ACCESSTOKEN-OPTION     @pythnetwork/hermes…@2.0.0  No `accessToken` option before…  static rule
+  📦 price_feeds/ton/sdk_js_usage/package.json
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@1.1.0  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  WARN    PYTH-HERMES-NO-ACCESSTOKEN-OPTION     @pythnetwork/hermes…@1.1.0  No `accessToken` option before…  static rule
+  📦 price_feeds/ton/send_usd/package.json
+  FAIL    PYTH-HERMES-KEYLESS-401               @pythnetwork/hermes…@1.2.0  Keyless Hermes Quickstart now …  live: HTTP 401 "unauthorized"
+  WARN    PYTH-HERMES-NO-ACCESSTOKEN-OPTION     @pythnetwork/hermes…@1.2.0  No `accessToken` option before…  static rule
+  📦 lazer/solana-anchor/package.json
+  WARN    ANCHOR-RENAMED-ANCHOR-LANG-CORE       @coral-xyz/anchor@0.31.1    Renamed to @anchor-lang/core i…  live: @anchor-lang/core@1.2.1 …
+  📦 price_feeds/starknet/sdk_js_usage/package.json
+  WARN    PYTH-PRICE-SERVICE-CLIENT-DEPRECATED  @pythnetwork/price-…@1.9.0  Package is deprecated on npm     live: npm deprecated 1.11.0: "…
+  📦 price_feeds/starknet/send_usd/client/package.json
+  WARN    PYTH-PRICE-SERVICE-CLIENT-DEPRECATED  @pythnetwork/price-…@1.9.0  Package is deprecated on npm     live: npm deprecated 1.11.0: "…
+
+FAIL ANCHOR-PROGRAM-CTOR-0.30 in lazer/js/package.json
+  @coral-xyz/anchor@0.30.1
+  Pre-0.30 new Program(idl, programId, provider)
+  Since Anchor 0.30 the constructor is `new Program(idl, provider?)`; the program id is read from `idl.address`. The old
+  3-argument form, still common in tutorials, passes the programId where the provider is expected.
+  at     lazer/js/src/solana/verify_ecdsa_message.ts:58  const program: anchor.Program<PythLazerSolanaContract> = new anchor.Program(
+  at     lazer/js/src/solana/verify_ed25519_message.ts:65  const program: anchor.Program<PythLazerSolanaContract> = new anchor.Program(
+  fix    Use `new Program(idl as MyProgram, provider)` with a 0.30+ IDL that contains `address`.
+  docs   https://www.anchor-lang.com/docs/updates/release-notes/0-30-0
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://rpc.solami.dev/sol?api_key=***
+         → HU64YGK66e1wdxD83D3snGuZEvfhM4YDdYShTfQvf6nm → null (missing/closed)
+  at     lazer/js/src/solana/post_solana.ts:21  const PROGRAM_ID = "HU64YGK66e1wdxD83D3snGuZEvfhM4YDdYShTfQvf6nm";
+  note   HU64YGK66e1wdxD83D3snGuZEvfhM4YDdYShTfQvf6nm → null on solami
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL ONCHAIN-ACCOUNT-MISSING in package.json
+  Hard-coded account missing or closed on-chain
+  A base58 pubkey hard-coded in source was not found via getMultipleAccounts on the configured cluster (null account).
+  The address is closed, never existed, or belongs to a different cluster.
+  probe  [live] getMultipleAccounts @ https://rpc.solami.dev/sol?api_key=***
+         → 2e5gZD3suxgJgkCg4pkoogxDKszy1SAwokz8mNeZUj4M → null (missing/closed)
+  at     price_feeds/solana/send_usd/app/src/App.tsx:31  const SEND_USD_PROGRAM_ID: PublicKey = new PublicKey(
+  note   2e5gZD3suxgJgkCg4pkoogxDKszy1SAwokz8mNeZUj4M → null on solami
+  fix    Replace the address with the current mainnet pubkey, or gate cluster-specific addresses behind an env/config
+         switch.
+  docs   https://solana.com/docs/rpc/http/getmultipleaccounts
+
+FAIL PYTH-HERMES-RAW-ENDPOINT in price_feeds/evm/chainlink_migration/package.json
+  Raw keyless calls to hermes.pyth.network
+  Code calls the public Hermes REST/SSE endpoint directly (fetch/axios/curl) without an Authorization header or
+  ACCESS_TOKEN. Keyless price-update requests now return HTTP 401.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/evm/chainlink_migration/README.md:86  curl 'https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xff61491a931112…
+  fix    Send `Authorization: Bearer *** (REST) or `?ACCESS_TOKEN=***` (SSE/WebSocket), or use
+         @pythnetwork/hermes-client >= 3.1.0 with `accessToken`.
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-RAW-ENDPOINT in price_feeds/evm/pyth_sample/package.json
+  Raw keyless calls to hermes.pyth.network
+  Code calls the public Hermes REST/SSE endpoint directly (fetch/axios/curl) without an Authorization header or
+  ACCESS_TOKEN. Keyless price-update requests now return HTTP 401.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/evm/pyth_sample/README.md:56  curl -s "https://hermes.pyth.network/v2/updates/price/latest?&ids[]=$ETH_USD_ID" | jq -r…
+  at     price_feeds/evm/pyth_sample/README.md:89  'https://hermes.pyth.network/v2/updates/price/latest?ids%5B%5D=0xe62df6c8b4a85fe1a67db44…
+  fix    Send `Authorization: Bearer *** (REST) or `?ACCESS_TOKEN=***` (SSE/WebSocket), or use
+         @pythnetwork/hermes-client >= 3.1.0 with `accessToken`.
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-KEYLESS-401 in price_feeds/fuel/fetch-and-update-btc-price/package.json
+  @pythnetwork/hermes-client@1.0.4
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/fuel/fetch-and-update-btc-price/src/pages/index.tsx:41  const connection = new HermesClient(hermesUrl);
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-KEYLESS-401 in price_feeds/fuel/sdk_js_usage/package.json
+  @pythnetwork/hermes-client@1.0.2
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/fuel/sdk_js_usage/src/index.ts:40  const hermesClient = new HermesClient("https://hermes.pyth.network");
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-KEYLESS-401 in price_feeds/solana/send_usd/app/package.json
+  @pythnetwork/hermes-client@2.0.0
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/solana/send_usd/app/src/App.tsx:46  const hermesClient = new HermesClient(HERMES_URL);
+  at     price_feeds/solana/send_usd/app/src/App.tsx:103  const hermesClient = new HermesClient(HERMES_URL);
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-KEYLESS-401 in price_feeds/ton/pyth-connector/package.json
+  @pythnetwork/hermes-client@2.0.0
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/ton/pyth-connector/tests/utils/utils.ts:87  const hermesClient = new HermesClient(hermesEndpoint);
+  at     price_feeds/ton/pyth-connector/scripts/deployPyth.ts:90  const hermesClient = new HermesClient(hermesEndpoint);
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-KEYLESS-401 in price_feeds/ton/sdk_js_usage/package.json
+  @pythnetwork/hermes-client@1.1.0
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/ton/sdk_js_usage/src/index.ts:37  const hermesClient = new HermesClient(hermesEndpoint);
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+FAIL PYTH-HERMES-KEYLESS-401 in price_feeds/ton/send_usd/package.json
+  @pythnetwork/hermes-client@1.2.0
+  Keyless Hermes Quickstart now returns HTTP 401
+  The hermes-client README Quickstart builds `new HermesClient("https://hermes.pyth.network", {})` with no credentials.
+  The public endpoint now rejects keyless price-update requests (/v2/updates/price/latest) with `401 unauthorized`, so
+  getLatestPriceUpdates() and SSE streams fail at runtime.
+  probe  [live] GET
+         https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+         → HTTP 401 "unauthorized" (402ms)
+  at     price_feeds/ton/send_usd/scripts/sendUsdPayment.ts:21  const hermesClient = new HermesClient(HERMES_ENDPOINT);
+  fix    Upgrade to @pythnetwork/hermes-client >= 3.1.0 and pass `{ accessToken: process.env.PYTH_HERMES_ACCESS_TOKEN }`
+         (sent as `Authorization: Bearer *** or point the client at a provider-hosted Hermes endpoint.
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client
+  docs   https://docs.pyth.network/price-feeds/api-instances-and-providers/hermes
+
+WARN ANCHOR-RENAMED-ANCHOR-LANG-CORE in lazer/js/package.json
+  @coral-xyz/anchor@0.30.1
+  Renamed to @anchor-lang/core in Anchor 1.0
+  Anchor 1.0 (and 0.31.2+ release notes) moved the TypeScript client to @anchor-lang/core; the @coral-xyz/* line is
+  legacy and is not the supported path for new releases.
+  probe  [live] npm @anchor-lang/core
+         → @anchor-lang/core@1.2.1 is published (754ms)
+  fix    npm i @anchor-lang/core and replace imports from "@coral-xyz/anchor" (including dist/cjs/idl) with
+         "@anchor-lang/core".
+  docs   https://www.anchor-lang.com/docs/updates/release-notes/1-0-0
+
+WARN ANCHOR-RENAMED-ANCHOR-LANG-CORE in lazer/solana-anchor/package.json
+  @coral-xyz/anchor@0.31.1
+  Renamed to @anchor-lang/core in Anchor 1.0
+  Anchor 1.0 (and 0.31.2+ release notes) moved the TypeScript client to @anchor-lang/core; the @coral-xyz/* line is
+  legacy and is not the supported path for new releases.
+  probe  [live] npm @anchor-lang/core
+         → @anchor-lang/core@1.2.1 is published (754ms)
+  fix    npm i @anchor-lang/core and replace imports from "@coral-xyz/anchor" (including dist/cjs/idl) with
+         "@anchor-lang/core".
+  docs   https://www.anchor-lang.com/docs/updates/release-notes/1-0-0
+
+WARN PYTH-HERMES-NO-ACCESSTOKEN-OPTION in price_feeds/fuel/fetch-and-update-btc-price/package.json
+  @pythnetwork/hermes-client@1.0.4
+  No `accessToken` option before 3.1.0
+  The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0.
+  Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be
+  authenticated cleanly.
+  fix    npm i @pythnetwork/hermes-client@^3.1.0
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions
+
+WARN PYTH-HERMES-NO-ACCESSTOKEN-OPTION in price_feeds/fuel/sdk_js_usage/package.json
+  @pythnetwork/hermes-client@1.0.2
+  No `accessToken` option before 3.1.0
+  The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0.
+  Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be
+  authenticated cleanly.
+  fix    npm i @pythnetwork/hermes-client@^3.1.0
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions
+
+WARN PYTH-PRICE-SERVICE-CLIENT-DEPRECATED in price_feeds/fuel/sdk_js_usage/package.json
+  @pythnetwork/price-service-client@1.9.0
+  Package is deprecated on npm
+  npm marks this package as deprecated and no longer maintained. Tutorials still reference it, but it will not receive
+  the Hermes auth changes.
+  probe  [live] npm deprecation @pythnetwork/price-service-client@latest
+         → npm deprecated 1.11.0: "This package is deprecated and is no longer maintained. Please use
+           @pythnetwork/hermes-client instead." (793ms)
+  fix    Migrate to @pythnetwork/hermes-client >= 3.1.0 (and configure an accessToken).
+  docs   https://www.npmjs.com/package/@pythnetwork/price-service-client
+
+WARN PYTH-HERMES-NO-ACCESSTOKEN-OPTION in price_feeds/solana/send_usd/app/package.json
+  @pythnetwork/hermes-client@2.0.0
+  No `accessToken` option before 3.1.0
+  The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0.
+  Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be
+  authenticated cleanly.
+  fix    npm i @pythnetwork/hermes-client@^3.1.0
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions
+
+WARN PYTH-PRICE-SERVICE-CLIENT-DEPRECATED in price_feeds/starknet/sdk_js_usage/package.json
+  @pythnetwork/price-service-client@1.9.0
+  Package is deprecated on npm
+  npm marks this package as deprecated and no longer maintained. Tutorials still reference it, but it will not receive
+  the Hermes auth changes.
+  probe  [live] npm deprecation @pythnetwork/price-service-client@latest
+         → npm deprecated 1.11.0: "This package is deprecated and is no longer maintained. Please use
+           @pythnetwork/hermes-client instead." (793ms)
+  fix    Migrate to @pythnetwork/hermes-client >= 3.1.0 (and configure an accessToken).
+  docs   https://www.npmjs.com/package/@pythnetwork/price-service-client
+
+WARN PYTH-PRICE-SERVICE-CLIENT-DEPRECATED in price_feeds/starknet/send_usd/client/package.json
+  @pythnetwork/price-service-client@1.9.0
+  Package is deprecated on npm
+  npm marks this package as deprecated and no longer maintained. Tutorials still reference it, but it will not receive
+  the Hermes auth changes.
+  probe  [live] npm deprecation @pythnetwork/price-service-client@latest
+         → npm deprecated 1.11.0: "This package is deprecated and is no longer maintained. Please use
+           @pythnetwork/hermes-client instead." (793ms)
+  fix    Migrate to @pythnetwork/hermes-client >= 3.1.0 (and configure an accessToken).
+  docs   https://www.npmjs.com/package/@pythnetwork/price-service-client
+
+WARN PYTH-HERMES-NO-ACCESSTOKEN-OPTION in price_feeds/ton/pyth-connector/package.json
+  @pythnetwork/hermes-client@2.0.0
+  No `accessToken` option before 3.1.0
+  The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0.
+  Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be
+  authenticated cleanly.
+  fix    npm i @pythnetwork/hermes-client@^3.1.0
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions
+
+WARN PYTH-HERMES-NO-ACCESSTOKEN-OPTION in price_feeds/ton/sdk_js_usage/package.json
+  @pythnetwork/hermes-client@1.1.0
+  No `accessToken` option before 3.1.0
+  The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0.
+  Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be
+  authenticated cleanly.
+  fix    npm i @pythnetwork/hermes-client@^3.1.0
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions
+
+WARN PYTH-HERMES-NO-ACCESSTOKEN-OPTION in price_feeds/ton/send_usd/package.json
+  @pythnetwork/hermes-client@1.2.0
+  No `accessToken` option before 3.1.0
+  The `accessToken` constructor option (Bearer auth for HTTP, ACCESS_TOKEN query param for SSE) first shipped in 3.1.0.
+  Older versions can only authenticate by hand-rolling `headers: { Authorization }`, and SSE streams cannot be
+  authenticated cleanly.
+  fix    npm i @pythnetwork/hermes-client@^3.1.0
+  docs   https://www.npmjs.com/package/@pythnetwork/hermes-client?activeTab=versions
+
+INFO SOLANA-WEB3JS-V1-MAINTENANCE in lazer/js/package.json
+  @solana/web3.js@1.98.0
+  web3.js 1.x is in maintenance mode
+  New development happens in @solana/kit (formerly web3.js 2.0). 1.x still works but receives fixes only.
+  probe  [live] npm @solana/kit
+         → @solana/kit@8.4.0 is published (812ms)
+  fix    Plan a migration to @solana/kit for new code; keep 1.x for libraries that still require it (e.g. Anchor
+         clients).
+  docs   https://github.com/anza-xyz/kit
+  docs   https://www.npmjs.com/package/@solana/kit
+
+INFO SOLANA-WEB3JS-V1-MAINTENANCE in price_feeds/solana/send_usd/app/package.json
+  @solana/web3.js@1.91.8
+  web3.js 1.x is in maintenance mode
+  New development happens in @solana/kit (formerly web3.js 2.0). 1.x still works but receives fixes only.
+  probe  [live] npm @solana/kit
+         → @solana/kit@8.4.0 is published (812ms)
+  fix    Plan a migration to @solana/kit for new code; keep 1.x for libraries that still require it (e.g. Anchor
+         clients).
+  docs   https://github.com/anza-xyz/kit
+  docs   https://www.npmjs.com/package/@solana/kit
+
+Summary: 11 fail, 11 warn, 2 info, 0 pass
